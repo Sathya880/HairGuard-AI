@@ -21,7 +21,7 @@ AXIOS CLIENT
 
 const api = axios.create({
   baseURL: FLASK_BASE_URL,
-  timeout: 120000,
+  timeout: 180000,
   headers: {
     "Content-Type": "application/json",
   },
