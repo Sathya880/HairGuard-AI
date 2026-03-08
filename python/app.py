@@ -1,6 +1,7 @@
 import logging
 import os
-from flask import Flask
+import threading
+from flask import Flask, jsonify
 from flask_cors import CORS
 
 from weights_loader import download_weights
@@ -8,8 +9,24 @@ from routes import register_routes
 from assistant_routes import register_assistant_routes
 
 
-def create_app():
+def load_models_async():
+    logger = logging.getLogger(__name__)
 
+    try:
+        logger.info("⬇ Downloading model weights from S3...")
+        download_weights()
+
+        logger.info("🔥 Loading AI models into memory...")
+        import model_registry
+        model_registry.warm_up_all()
+
+        logger.info("✅ Models loaded successfully")
+
+    except Exception as e:
+        logger.error(f"❌ Model loading failed: {e}")
+
+
+def create_app():
     app = Flask(__name__)
     CORS(app)
 
@@ -21,22 +38,24 @@ def create_app():
     logger = logging.getLogger(__name__)
     logger.info("🚀 Starting Hair AI Server")
 
-    # Download model weights from S3
-    download_weights()
+    # Start model loading in background
+    threading.Thread(target=load_models_async, daemon=True).start()
 
-    # Load models into memory
-    import model_registry
-    model_registry.warm_up_all()
-
+    # Register API routes
     register_routes(app)
     register_assistant_routes(app)
 
     @app.route("/health")
     def health():
-        from flask import jsonify
+        try:
+            import model_registry
+            model_status = model_registry.status()
+        except Exception:
+            model_status = "loading"
+
         return jsonify({
             "status": "ok",
-            "models": model_registry.status()
+            "models": model_status
         })
 
     return app
@@ -44,9 +63,7 @@ def create_app():
 
 app = create_app()
 
-
 if __name__ == "__main__":
-
     port = int(os.environ.get("PORT", 5001))
 
     logging.getLogger(__name__).info(
