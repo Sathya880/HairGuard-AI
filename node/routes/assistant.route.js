@@ -242,7 +242,7 @@ router.post("/simulate", authMiddleware, async (req, res) => {
     };
 
     // ── 3. Call Python SimulationEngine ──────────────────────────────────────
-    const FLASK_URL = process.env.FLASK_URL || "http://localhost:5001";
+    const FLASK_URL = process.env.FLASK_URL || "https://hairguard-ai.onrender.com";
     let simResult = null;
 
     try {

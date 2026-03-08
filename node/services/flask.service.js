@@ -11,7 +11,7 @@ Fallback → local Flask server
 const FLASK_BASE_URL =
   process.env.FLASK_URL ||
   process.env.PYTHON_AI_URL ||
-  "http://127.0.0.1:5001";
+  "https://hairguard-ai.onrender.com";
 
 /*
 ────────────────────────────────────────

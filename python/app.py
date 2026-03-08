@@ -8,8 +8,11 @@ from weights_loader import download_weights
 from routes import register_routes
 from assistant_routes import register_assistant_routes
 
+models_ready = False
+
 
 def load_models_async():
+    global models_ready
     logger = logging.getLogger(__name__)
 
     try:
@@ -20,6 +23,7 @@ def load_models_async():
         import model_registry
         model_registry.warm_up_all()
 
+        models_ready = True
         logger.info("✅ Models loaded successfully")
 
     except Exception as e:
@@ -38,10 +42,13 @@ def create_app():
     logger = logging.getLogger(__name__)
     logger.info("🚀 Starting Hair AI Server")
 
-    # Start model loading in background
-    threading.Thread(target=load_models_async, daemon=True).start()
+    # Load models in background
+    threading.Thread(
+        target=load_models_async,
+        daemon=True,
+        name="model-loader"
+    ).start()
 
-    # Register API routes
     register_routes(app)
     register_assistant_routes(app)
 
@@ -55,7 +62,8 @@ def create_app():
 
         return jsonify({
             "status": "ok",
-            "models": model_status
+            "models": model_status,
+            "ready": models_ready
         })
 
     return app

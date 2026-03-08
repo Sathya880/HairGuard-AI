@@ -36,7 +36,7 @@ const upload = multer({
 /* ── ENV ─────────────────────────────────────────── */
 const PORT = process.env.PORT || 5000;
 const SESSION_SECRET = process.env.SESSION_SECRET || "hair_app_secret";
-const PYTHON_AI_URL = process.env.PYTHON_AI_URL || "http://127.0.0.1:5001";
+const PYTHON_AI_URL = process.env.PYTHON_AI_URL || "https://hairguard-ai.onrender.com";
 
 const connectDB = require("./config/db");
 connectDB();
