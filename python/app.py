@@ -10,13 +10,16 @@ from assistant_routes import register_assistant_routes
 
 import model_registry
 
+
 models_ready = False
+models_loading_started = False
 
 
 def load_models_async():
-    """Load AI models in background so server starts immediately."""
+    """Load AI models in background."""
     global models_ready
-    logger = logging.getLogger(__name__)
+
+    logger = logging.getLogger("model_loader")
 
     try:
         logger.info("⬇ Checking / downloading model weights...")
@@ -32,6 +35,22 @@ def load_models_async():
         logger.exception("❌ Model loading failed")
 
 
+def start_background_model_loading():
+    """Ensure model loading starts only once."""
+    global models_loading_started
+
+    if models_loading_started:
+        return
+
+    models_loading_started = True
+
+    thread = threading.Thread(
+        target=load_models_async,
+        daemon=True
+    )
+    thread.start()
+
+
 def create_app():
     app = Flask(__name__)
     CORS(app)
@@ -41,11 +60,16 @@ def create_app():
         format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
     )
 
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger("app")
     logger.info("🚀 Starting Hair AI Server")
 
     register_routes(app)
     register_assistant_routes(app)
+
+    @app.before_request
+    def ensure_models_loading():
+        # starts model loading on first request
+        start_background_model_loading()
 
     @app.route("/health")
     def health():
@@ -65,18 +89,16 @@ def create_app():
 
 app = create_app()
 
-# 🔥 Start loading models in background
-threading.Thread(target=load_models_async, daemon=True).start()
 
-
-# Only used when running locally
+# Local development run
 if __name__ == "__main__":
-
     port = int(os.environ.get("PORT", 10000))
 
-    logging.getLogger(__name__).info(
+    logging.getLogger("app").info(
         f"🌐 Server running on http://0.0.0.0:{port}"
     )
+
+    start_background_model_loading()
 
     app.run(
         host="0.0.0.0",
