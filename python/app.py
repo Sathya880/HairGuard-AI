@@ -1,5 +1,6 @@
 import logging
 import os
+import threading
 from flask import Flask, jsonify
 from flask_cors import CORS
 
@@ -12,7 +13,8 @@ import model_registry
 models_ready = False
 
 
-def load_models():
+def load_models_async():
+    """Load AI models in background so server starts immediately."""
     global models_ready
     logger = logging.getLogger(__name__)
 
@@ -28,7 +30,6 @@ def load_models():
 
     except Exception:
         logger.exception("❌ Model loading failed")
-        raise
 
 
 def create_app():
@@ -42,9 +43,6 @@ def create_app():
 
     logger = logging.getLogger(__name__)
     logger.info("🚀 Starting Hair AI Server")
-
-    # 🔴 BLOCK until models are loaded
-    load_models()
 
     register_routes(app)
     register_assistant_routes(app)
@@ -67,6 +65,11 @@ def create_app():
 
 app = create_app()
 
+# 🔥 Start loading models in background
+threading.Thread(target=load_models_async, daemon=True).start()
+
+
+# Only used when running locally
 if __name__ == "__main__":
 
     port = int(os.environ.get("PORT", 10000))
