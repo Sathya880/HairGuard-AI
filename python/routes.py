@@ -1,41 +1,50 @@
 from flask import request, jsonify
 from services import run_analysis
-from utils import download_and_check_blur
-import model_registry as _reg
+import model_registry
+from utils import download_images
 
 
 def register_routes(app):
 
+    # ─────────────────────────────
+    # HAIR ANALYSIS
+    # ─────────────────────────────
     @app.route("/analyze", methods=["POST"])
     def analyze():
 
-        data = request.get_json()
-
-        user_id = data.get("userId")
-
-        top_url   = data.get("topImageUrl")
-        front_url = data.get("frontImageUrl")
-        back_url  = data.get("backImageUrl")
-
-        flashcard_answers = data.get("flashcardAnswers", {})
-
-        previous_score    = data.get("previousHairScore")
-        previous_dandruff = data.get("previousDandruffSeverity")
-
-        if not top_url:
-            return jsonify({"error": "topImageUrl required"}), 400
-
         try:
 
-            top_image = download_and_check_blur(top_url, "top")
+            if not model_registry.is_ready("hairloss_model"):
+                return jsonify({
+                    "success": False,
+                    "error": "AI models still loading"
+                }), 503
 
-            front_image = None
-            if front_url:
-                front_image = download_and_check_blur(front_url, "front")
+            data = request.get_json(force=True)
 
-            back_image = None
-            if back_url:
-                back_image = download_and_check_blur(back_url, "back")
+            user_id = data.get("userId")
+
+            top_url = data.get("topImageUrl")
+            front_url = data.get("frontImageUrl")
+            back_url = data.get("backImageUrl")
+
+            flashcard_answers = data.get("flashcardAnswers", {})
+
+            previous_score = data.get("previousHairScore")
+            previous_dandruff = data.get("previousDandruffSeverity")
+
+            if not top_url:
+                return jsonify({
+                    "success": False,
+                    "error": "topImageUrl required"
+                }), 400
+
+            # Download images from S3
+            top_image, front_image, back_image = download_images(
+                top_url,
+                front_url,
+                back_url
+            )
 
             result = run_analysis(
                 top_image,
@@ -49,29 +58,33 @@ def register_routes(app):
 
             return jsonify({
                 "success": True,
-                "userId": user_id,
                 **result
             })
 
         except Exception as e:
             import traceback
             tb = traceback.format_exc()
-            print(tb)                          # prints to Flask terminal
+
+            print(tb)
+
             return jsonify({
                 "success": False,
                 "error": str(e),
-                "traceback": tb                # also visible in app response
+                "traceback": tb
             }), 500
 
-    # ─────────────────────────────────────────
+
+    # ─────────────────────────────
     # ADAPTIVE ROUTINE
-    # ─────────────────────────────────────────
+    # ─────────────────────────────
     @app.route("/adaptive-routine", methods=["POST"])
     def adaptive_routine():
+
         try:
+
             data = request.get_json(force=True)
 
-            routine = _reg.get("adaptive_routine_engine").generate(
+            routine = model_registry.get("adaptive_routine_engine").generate(
                 hairloss_severity=data.get("hairlossSeverity", "moderate"),
                 dandruff_severity=data.get("dandruffSeverity", "moderate"),
                 root_cause=data.get("rootCause", "general"),
@@ -87,8 +100,9 @@ def register_routes(app):
 
         except Exception as e:
             import traceback
-            traceback.print_exc()   # ← add this line
-            jsonify({
+            traceback.print_exc()
+
+            return jsonify({
                 "success": False,
                 "error": str(e)
             }), 500
