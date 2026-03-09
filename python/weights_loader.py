@@ -24,13 +24,14 @@ def download_weights():
     with _download_lock:
 
         if _downloaded:
+            logger.info("✓ weights already downloaded in this session")
             return
 
         os.makedirs("weights", exist_ok=True)
 
-        # Check if all weights already exist
+        # check if all files already exist
         if all(os.path.exists(f"weights/{f}") for f in FILES):
-            logger.info("✓ All weights already present")
+            logger.info("✓ all weights already exist locally")
             _downloaded = True
             return
 
@@ -39,25 +40,25 @@ def download_weights():
             local_path = f"weights/{file}"
 
             if os.path.exists(local_path):
-                logger.info(f"✓ weight already exists: {local_path}")
+                logger.info(f"✓ weight exists: {local_path}")
                 continue
 
             url = BASE_URL + file
             logger.info(f"⬇ downloading {url}")
 
             try:
-                r = requests.get(url, stream=True, timeout=60)
-                r.raise_for_status()
+                response = requests.get(url, stream=True, timeout=60)
+                response.raise_for_status()
 
                 with open(local_path, "wb") as f:
-                    for chunk in r.iter_content(8192):
+                    for chunk in response.iter_content(8192):
                         if chunk:
                             f.write(chunk)
 
-                logger.info(f"✓ downloaded {local_path}")
+                logger.info(f"✓ downloaded {file}")
 
             except Exception as e:
-                logger.error(f"❌ Failed downloading {file}: {e}")
+                logger.error(f"❌ download failed for {file}: {e}")
                 raise
 
         _downloaded = True

@@ -16,10 +16,10 @@ def load_models_async():
     logger = logging.getLogger(__name__)
 
     try:
-        logger.info("⬇ Downloading model weights from S3...")
+        logger.info("⬇ Checking / downloading model weights...")
         download_weights()
 
-        logger.info("🔥 Loading AI models into memory...")
+        logger.info("🔥 Loading AI models...")
         import model_registry
         model_registry.warm_up_all()
 
@@ -27,7 +27,7 @@ def load_models_async():
         logger.info("✅ Models loaded successfully")
 
     except Exception as e:
-        logger.error(f"❌ Model loading failed: {e}")
+        logger.exception("❌ Model loading failed")
 
 
 def create_app():
@@ -42,7 +42,7 @@ def create_app():
     logger = logging.getLogger(__name__)
     logger.info("🚀 Starting Hair AI Server")
 
-    # Load models in background
+    # start model loading in background
     threading.Thread(
         target=load_models_async,
         daemon=True,
