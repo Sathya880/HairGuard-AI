@@ -9,8 +9,9 @@ const axios = require("axios");
 
 const { v4: uuidv4 } = require("uuid");
 require("dotenv").config();
-const pLimit = require("p-limit");
-const aiLimiter = pLimit(2); // only 2 AI calls at once
+
+const pLimit = require("p-limit").default;
+const aiLimiter = pLimit(2);
 
 
 /* ── MODELS ──────────────────────────────────────── */
