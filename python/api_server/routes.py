@@ -27,8 +27,7 @@ def load_s3_image(key):
     bucket = os.getenv("AWS_BUCKET_NAME")
 
     if not bucket:
-        raise RuntimeError("AWS_BUCKET_NAME not configured")
-
+        return jsonify({"error": "S3 bucket not configured"}), 500
     s3 = get_s3()
 
     obj = s3.get_object(

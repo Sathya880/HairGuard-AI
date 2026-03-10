@@ -17,7 +17,7 @@ logging.basicConfig(
 logger = logging.getLogger("hair_ai")
 
 
-def init_models():
+def initialize_system():
 
     try:
 
@@ -31,7 +31,7 @@ def init_models():
 
         warm_models()
 
-        logger.info("✅ initialization complete")
+        logger.info("✅ system ready")
 
     except Exception:
         logger.exception("Initialization failed")
@@ -47,24 +47,28 @@ def create_app():
 
     @app.route("/")
     def root():
-        return {"service": "hair-ai-backend"}
+        return {"service": "hair-ai-backend", "status": "running"}
 
     @app.route("/health")
     def health():
 
         from inference_worker.model_registry import status
 
-        return {"status": "ok", "models": status()}
+        return {
+            "status": "ok",
+            "models": status()
+        }
 
     return app
 
 
 app = create_app()
 
-threading.Thread(target=init_models, daemon=True).start()
+threading.Thread(target=initialize_system, daemon=True).start()
 
 
 if __name__ == "__main__":
 
     port = int(os.environ.get("PORT", 10000))
+
     app.run(host="0.0.0.0", port=port)
