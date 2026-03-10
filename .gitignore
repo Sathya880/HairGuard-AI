@@ -7,3 +7,4 @@ weights/
 *.pth
 uploads/
 results/
+python/
