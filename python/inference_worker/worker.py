@@ -1,28 +1,24 @@
-from flask import Flask, request, jsonify
 import logging
-
 from services import run_analysis
 from shared.weights_loader import download_weights
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
-
-
-@app.before_first_request
-def init_models():
-
-    logging.info("⬇ Downloading weights")
-
+# download weights once at import time
+try:
+    logger.info("⬇ Downloading model weights")
     download_weights()
+    logger.info("✅ Weights ready")
+except Exception as e:
+    logger.error(f"Weight download failed: {e}")
 
 
-@app.route("/run-analysis", methods=["POST"])
-def run():
+def run_worker(data):
+    """
+    Worker entry for analysis
+    """
 
     try:
-
-        data = request.json
 
         result = run_analysis(
             data["topImage"],
@@ -34,11 +30,13 @@ def run():
             data.get("previousDandruffSeverity")
         )
 
-        return jsonify(result)
+        return result
 
     except Exception as e:
 
-        return jsonify({
+        logger.exception("Worker failed")
+
+        return {
             "success": False,
             "error": str(e)
-        }), 500
+        }
