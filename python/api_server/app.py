@@ -25,7 +25,7 @@ def init_models():
 
         download_weights()
 
-        logger.info("🔥 warming critical models")
+        logger.info("🔥 warming models")
 
         from inference_worker.warmup import warm_models
 
@@ -42,24 +42,19 @@ def create_app():
     app = Flask(__name__)
     CORS(app)
 
-    logger.info("🚀 Hair AI backend starting")
-
     register_routes(app)
     register_assistant_routes(app)
 
     @app.route("/")
     def root():
-        return {"service": "hair-ai-backend", "status": "running"}
+        return {"service": "hair-ai-backend"}
 
     @app.route("/health")
     def health():
 
         from inference_worker.model_registry import status
 
-        return {
-            "status": "ok",
-            "models": status()
-        }
+        return {"status": "ok", "models": status()}
 
     return app
 
@@ -72,5 +67,4 @@ threading.Thread(target=init_models, daemon=True).start()
 if __name__ == "__main__":
 
     port = int(os.environ.get("PORT", 10000))
-
     app.run(host="0.0.0.0", port=port)
