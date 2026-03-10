@@ -1,6 +1,6 @@
 """
 Hair AI Backend — Production Entry Point
-Optimized for Railway / Render
+Compatible with Flask 3.x
 """
 
 import logging
@@ -23,23 +23,38 @@ logger = logging.getLogger("hair_ai")
 
 
 def ensure_weights():
-    """
-    Download model weights if missing
-    """
+    """Download model weights if missing"""
 
     try:
-
         from shared.weights_loader import download_weights
 
         logger.info("⬇ checking model weights")
-
         download_weights()
 
         logger.info("✅ weights ready")
 
     except Exception as e:
-
         logger.error(f"weight download failed: {e}")
+
+
+def start_background_tasks():
+    """Run startup tasks safely"""
+
+    logger.info("⚙ starting background tasks")
+
+    # download weights
+    threading.Thread(
+        target=ensure_weights,
+        daemon=True
+    ).start()
+
+    # warm models
+    from inference_worker.warmup import warm_models
+
+    threading.Thread(
+        target=warm_models,
+        daemon=True
+    ).start()
 
 
 def create_app():
@@ -54,7 +69,6 @@ def create_app():
 
     @app.route("/")
     def root():
-
         return jsonify({
             "service": "hair-ai-backend",
             "status": "running"
@@ -64,7 +78,6 @@ def create_app():
     def health():
 
         try:
-
             from inference_worker.model_registry import status
 
             return jsonify({
@@ -73,39 +86,18 @@ def create_app():
             })
 
         except Exception as e:
-
             return jsonify({
                 "status": "error",
                 "error": str(e)
             }), 500
 
-    # ─────────────────────────────
-    # STARTUP TASKS
-    # ─────────────────────────────
-
-    @app.before_first_request
-    def startup():
-
-        logger.info("⚙ running startup tasks")
-
-        # download weights
-        threading.Thread(
-            target=ensure_weights,
-            daemon=True
-        ).start()
-
-        # warm models
-        from inference_worker.warmup import warm_models
-
-        threading.Thread(
-            target=warm_models,
-            daemon=True
-        ).start()
-
     return app
 
 
 app = create_app()
+
+# start background initialization
+start_background_tasks()
 
 
 if __name__ == "__main__":
