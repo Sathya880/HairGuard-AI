@@ -1,18 +1,13 @@
-"""
-Hair AI Backend — Production Entry Point
-Compatible with Flask 3.x
-"""
-
 import logging
 import os
 import threading
 
-from flask import Flask, jsonify
+from flask import Flask
 from flask_cors import CORS
 
 from api_server.routes import register_routes
 from assistant_service.assistant_routes import register_assistant_routes
-
+from shared.weights_loader import download_weights
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,39 +17,24 @@ logging.basicConfig(
 logger = logging.getLogger("hair_ai")
 
 
-def ensure_weights():
-    """Download model weights if missing"""
+def init_models():
 
     try:
-        from shared.weights_loader import download_weights
 
         logger.info("⬇ checking model weights")
+
         download_weights()
 
-        logger.info("✅ weights ready")
+        logger.info("🔥 warming critical models")
 
-    except Exception as e:
-        logger.error(f"weight download failed: {e}")
+        from inference_worker.warmup import warm_models
 
+        warm_models()
 
-def start_background_tasks():
-    """Run startup tasks safely"""
+        logger.info("✅ initialization complete")
 
-    logger.info("⚙ starting background tasks")
-
-    # download weights
-    threading.Thread(
-        target=ensure_weights,
-        daemon=True
-    ).start()
-
-    # warm models
-    from inference_worker.warmup import warm_models
-
-    threading.Thread(
-        target=warm_models,
-        daemon=True
-    ).start()
+    except Exception:
+        logger.exception("Initialization failed")
 
 
 def create_app():
@@ -69,45 +49,28 @@ def create_app():
 
     @app.route("/")
     def root():
-        return jsonify({
-            "service": "hair-ai-backend",
-            "status": "running"
-        })
+        return {"service": "hair-ai-backend", "status": "running"}
 
     @app.route("/health")
     def health():
 
-        try:
-            from inference_worker.model_registry import status
+        from inference_worker.model_registry import status
 
-            return jsonify({
-                "status": "ok",
-                "models": status()
-            })
-
-        except Exception as e:
-            return jsonify({
-                "status": "error",
-                "error": str(e)
-            }), 500
+        return {
+            "status": "ok",
+            "models": status()
+        }
 
     return app
 
 
 app = create_app()
 
-# start background initialization
-start_background_tasks()
+threading.Thread(target=init_models, daemon=True).start()
 
 
 if __name__ == "__main__":
 
     port = int(os.environ.get("PORT", 10000))
 
-    logger.info(f"🌐 running on port {port}")
-
-    app.run(
-        host="0.0.0.0",
-        port=port,
-        debug=False
-    )
+    app.run(host="0.0.0.0", port=port)

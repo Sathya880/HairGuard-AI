@@ -1,40 +1,41 @@
 import logging
-from services import run_analysis
+
+from inference_worker.services import run_analysis
 from shared.weights_loader import download_weights
 
 logger = logging.getLogger(__name__)
 
-# download weights once at import time
-try:
-    logger.info("⬇ Downloading model weights")
-    download_weights()
-    logger.info("✅ Weights ready")
-except Exception as e:
-    logger.error(f"Weight download failed: {e}")
+
+def initialize_worker():
+
+    try:
+        logger.info("⬇ downloading weights")
+        download_weights()
+        logger.info("✅ weights ready")
+
+    except Exception as e:
+        logger.exception("weight download failed")
 
 
 def run_worker(data):
-    """
-    Worker entry for analysis
-    """
 
     try:
 
         result = run_analysis(
-            data["topImage"],
-            data.get("frontImage"),
-            data.get("backImage"),
-            data.get("flashcardAnswers", {}),
-            data.get("userId"),
-            data.get("previousHairScore"),
-            data.get("previousDandruffSeverity")
+            top_image=data["topImage"],
+            front_image=data.get("frontImage"),
+            back_image=data.get("backImage"),
+            flashcard_answers=data.get("flashcardAnswers", {}),
+            user_id=data.get("userId"),
+            previous_score=data.get("previousHairScore"),
+            previous_dandruff=data.get("previousDandruffSeverity"),
         )
 
         return result
 
     except Exception as e:
 
-        logger.exception("Worker failed")
+        logger.exception("worker failed")
 
         return {
             "success": False,
