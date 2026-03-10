@@ -1,20 +1,18 @@
 """
 Weights Loader
 ==============
-Downloads ML model weights from S3 on first boot (if not already present).
+Downloads ML model weights from S3 on first boot.
 
-Storage strategy for Render 512 MB disk
-----------------------------------------
-Render's free tier has ephemeral disk — weights are re-downloaded on every
-cold start. The files total ~300 MB so we download in parallel and skip any
-file that already exists on disk (warm restart / persistent disk scenario).
-
-The download is triggered lazily from model_registry.get() via each model's
-factory, so the server is never blocked at startup.
+Optimized for:
+- Railway / Render ephemeral disk
+- parallel download
+- safe streaming
+- retry on network failure
 """
 
 import logging
 import os
+import time
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
 
@@ -23,10 +21,9 @@ import requests
 logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────
-# Configuration
+# CONFIG
 # ─────────────────────────────────────────────
 
-# Override via WEIGHTS_BASE_URL env var to point at your own bucket path
 BASE_URL = os.getenv(
     "WEIGHTS_BASE_URL",
     "https://hair-app-user-images.s3.ap-south-1.amazonaws.com/models/"
@@ -41,79 +38,93 @@ FILES = [
 
 WEIGHTS_DIR = os.getenv("WEIGHTS_DIR", "weights")
 
+MAX_WORKERS = int(os.getenv("WEIGHTS_DOWNLOAD_THREADS", 3))
+RETRIES = 3
+
 # ─────────────────────────────────────────────
-# Internal state
+# INTERNAL STATE
 # ─────────────────────────────────────────────
 
-_lock       = Lock()
+_lock = Lock()
 _downloaded = False
-_HTTP       = requests.Session()
-_POOL       = ThreadPoolExecutor(max_workers=3, thread_name_prefix="weights-dl")
+_http = requests.Session()
 
 
 # ─────────────────────────────────────────────
-# File download
+# DOWNLOAD SINGLE FILE
 # ─────────────────────────────────────────────
 
 def _download_file(file_name: str) -> None:
+
     local = os.path.join(WEIGHTS_DIR, file_name)
-    tmp   = local + ".part"
+    tmp = local + ".part"
 
     if os.path.exists(local):
         logger.info(f"✓ weight exists: {file_name}")
         return
 
     url = BASE_URL + file_name
-    logger.info(f"⬇  downloading: {url}")
 
-    try:
-        resp = _HTTP.get(url, stream=True, timeout=180)
-        resp.raise_for_status()
+    for attempt in range(RETRIES):
 
-        with open(tmp, "wb") as fh:
-            for chunk in resp.iter_content(chunk_size=65536):
-                if chunk:
-                    fh.write(chunk)
+        try:
 
-        os.replace(tmp, local)
-        logger.info(f"✅ saved: {file_name}")
+            logger.info(f"⬇ downloading {file_name} (attempt {attempt+1})")
 
-    except Exception as exc:
-        logger.error(f"❌ failed: {file_name} → {exc}")
-        if os.path.exists(tmp):
-            os.remove(tmp)
-        raise
+            r = _http.get(url, stream=True, timeout=300)
+            r.raise_for_status()
+
+            with open(tmp, "wb") as f:
+                for chunk in r.iter_content(chunk_size=1024 * 64):
+                    if chunk:
+                        f.write(chunk)
+
+            os.replace(tmp, local)
+
+            logger.info(f"✅ saved {file_name}")
+            return
+
+        except Exception as e:
+
+            logger.warning(f"retry {file_name} ({attempt+1}) → {e}")
+            time.sleep(2)
+
+    raise RuntimeError(f"failed to download {file_name}")
 
 
 # ─────────────────────────────────────────────
-# Public API
+# PUBLIC API
 # ─────────────────────────────────────────────
 
 def download_weights() -> None:
     """
-    Ensure all weight files are present locally.
-    Thread-safe; idempotent (safe to call multiple times).
+    Ensure all weight files exist locally.
+    Thread safe.
     """
+
     global _downloaded
 
     with _lock:
+
         if _downloaded:
             return
 
         os.makedirs(WEIGHTS_DIR, exist_ok=True)
 
-        missing = [f for f in FILES
-                   if not os.path.exists(os.path.join(WEIGHTS_DIR, f))]
+        missing = [
+            f for f in FILES
+            if not os.path.exists(os.path.join(WEIGHTS_DIR, f))
+        ]
 
         if not missing:
-            logger.info("✓ all weights already on disk")
+            logger.info("✓ weights already present")
             _downloaded = True
             return
 
-        logger.info(f"⬇  downloading {len(missing)} weight file(s) in parallel …")
-        futures = [_POOL.submit(_download_file, f) for f in missing]
-        for fut in futures:
-            fut.result()   # re-raises on error
+        logger.info(f"⬇ downloading {len(missing)} weight files")
+
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
+            pool.map(_download_file, missing)
 
         _downloaded = True
-        logger.info("✅ all model weights ready")
+        logger.info("✅ all weights ready")
