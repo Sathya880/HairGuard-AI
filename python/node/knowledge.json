@@ -1,0 +1,507 @@
+{
+  "metadata": {
+    "version": "3.0.0",
+    "description": "Complete hair care resource library — trusted website articles (AAD, Mayo Clinic, Healthline, WebMD, NHS) + 60 curated YouTube videos from board-certified dermatologists and hair experts. All entries are keyword-indexed for chatbot integration.",
+    "total_youtube_videos": 60,
+    "total_website_entries": 20,
+    "trusted_website_sources": [
+      "American Academy of Dermatology (AAD) — aad.org",
+      "Mayo Clinic — mayoclinic.org",
+      "NHS (National Health Service UK) — nhs.uk",
+      "Healthline — healthline.com",
+      "WebMD — webmd.com"
+    ],
+    "trusted_youtube_channels": [
+      "Dr Dray (Dr Andrea Suarez) — Board-Certified Dermatologist, 1.5M+ subscribers",
+      "Dr Shereene Idriss (Pillow Talk Derm) — Board-Certified Dermatologist, NYC",
+      "Manes by Mell (Mell Guido) — Licensed Cosmetologist, Curl Expert, 600K+ subscribers",
+      "India Batson — Trusted Curly Hair Educator, 500K+ subscribers",
+      "Naptural85 (Whitney White) — Natural Hair Expert, 1M+ subscribers",
+      "Brad Mondo — Celebrity Hairstylist & Educator, 8M+ subscribers",
+      "Luxy Hair — Professional Hair Education Channel, 3M+ subscribers",
+      "American Academy of Dermatology (AAD) — Official Medical Body"
+    ],
+    "last_updated": "2026-02-26"
+  },
+
+  "website_resources": [
+{
+"id":"w_001",
+"keywords":["hair loss","baldness","thinning hair","alopecia","receding hairline","hair shedding"],
+"urls":[
+"https://www.aad.org",
+"https://www.mayoclinic.org",
+"https://www.nhs.uk/conditions",
+"https://www.healthline.com/health",
+"https://www.webmd.com/skin-problems-and-treatments"
+]
+},
+{
+"id":"w_002",
+"keywords":["dandruff","flaky scalp","itching","white flakes","scalp flaking","seborrheic dermatitis"],
+"urls":[
+"https://www.healthline.com/health",
+"https://www.aad.org",
+"https://www.nhs.uk/conditions",
+"https://www.webmd.com/skin-problems-and-treatments"
+]
+},
+{
+"id":"w_003",
+"keywords":["hair fall","shedding","excessive hair loss","hair thinning","losing hair"],
+"urls":[
+"https://www.webmd.com",
+"https://www.healthline.com/health",
+"https://www.mayoclinic.org"
+]
+},
+{
+"id":"w_004",
+"keywords":["causes of hair loss","why hair falls","stress hair loss","hormonal hair loss","hair loss reasons"],
+"urls":[
+"https://www.aad.org",
+"https://www.mayoclinic.org",
+"https://www.healthline.com/health"
+]
+},
+{
+"id":"w_005",
+"keywords":["prevent hair loss","stop hair fall","hair loss prevention","how to stop shedding"],
+"urls":[
+"https://www.healthline.com/health",
+"https://www.webmd.com",
+"https://www.nhs.uk"
+]
+},
+{
+"id":"w_006",
+"keywords":["hair loss overview","types of hair loss","hair loss symptoms","balding signs"],
+"urls":[
+"https://www.webmd.com",
+"https://www.mayoclinic.org",
+"https://www.aad.org"
+]
+},
+{
+"id":"w_007",
+"keywords":["hair loss treatment","alopecia areata","pattern baldness","NHS hair loss"],
+"urls":[
+"https://www.nhs.uk",
+"https://www.mayoclinic.org",
+"https://www.healthline.com"
+]
+},
+{
+"id":"w_008",
+"keywords":["hair loss symptoms","causes of baldness","medical hair loss","thyroid hair loss"],
+"urls":[
+"https://www.mayoclinic.org",
+"https://www.healthline.com",
+"https://www.webmd.com"
+]
+},
+{
+"id":"w_009",
+"keywords":["hair growth tips","grow hair faster","how to grow hair","stimulate hair growth"],
+"urls":[
+"https://www.healthline.com",
+"https://www.webmd.com/beauty",
+"https://www.aad.org"
+]
+},
+{
+"id":"w_010",
+"keywords":["make hair grow faster","increase hair growth","hair growth home remedies","fast hair growth"],
+"urls":[
+"https://www.webmd.com/beauty",
+"https://www.healthline.com",
+"https://www.mayoclinic.org"
+]
+},
+{
+"id":"w_011",
+"keywords":["hair damage","damaged hair","stop damaging hair","protect hair from damage"],
+"urls":[
+"https://www.aad.org",
+"https://www.healthline.com",
+"https://www.webmd.com/beauty"
+]
+},
+{
+"id":"w_012",
+"keywords":["female hair loss","women hair loss","female pattern baldness","hair loss in women"],
+"urls":[
+"https://www.healthline.com",
+"https://www.webmd.com",
+"https://www.mayoclinic.org"
+]
+},
+{
+"id":"w_013",
+"keywords":["women hair thinning","female hair thinning","hair loss women causes","hormonal hair loss women"],
+"urls":[
+"https://www.webmd.com",
+"https://www.healthline.com",
+"https://www.nhs.uk"
+]
+},
+{
+"id":"w_014",
+"keywords":["alopecia areata","patchy hair loss","autoimmune hair loss","circular bald patches"],
+"urls":[
+"https://www.nhs.uk",
+"https://www.healthline.com",
+"https://www.mayoclinic.org"
+]
+},
+{
+"id":"w_015",
+"keywords":["alopecia areata causes","patchy baldness","immune system hair loss","alopecia treatment"],
+"urls":[
+"https://www.mayoclinic.org",
+"https://www.healthline.com",
+"https://www.webmd.com"
+]
+},
+{
+"id":"w_016",
+"keywords":["scalp conditions","scalp problems","scalp disease","unhealthy scalp","scalp disorders"],
+"urls":[
+"https://www.healthline.com",
+"https://www.webmd.com",
+"https://www.aad.org"
+]
+},
+{
+"id":"w_017",
+"keywords":["scalp treatment","scalp infection","scalp irritation","red scalp","scalp bumps"],
+"urls":[
+"https://www.webmd.com",
+"https://www.healthline.com",
+"https://www.aad.org"
+]
+},
+{
+"id":"w_018",
+"keywords":["seborrheic dermatitis","greasy scalp","yellow flakes","oily dandruff","scalp redness"],
+"urls":[
+"https://www.aad.org",
+"https://www.healthline.com",
+"https://www.nhs.uk"
+]
+},
+{
+"id":"w_019",
+"keywords":["seborrheic dermatitis treatment","scalp eczema","cradle cap","dermatitis scalp"],
+"urls":[
+"https://www.healthline.com",
+"https://www.webmd.com",
+"https://www.mayoclinic.org"
+]
+},
+{
+"id":"w_020",
+"keywords":["dandruff causes","dandruff treatment","anti dandruff shampoo","scalp itching treatment"],
+"urls":[
+"https://www.nhs.uk",
+"https://www.healthline.com",
+"https://www.webmd.com"
+]
+}
+],
+ "youtube_videos": [
+
+{ "id":"v_001","title":"Reason Why hair Is Falling Out","channel":"Dr Dray","url":"https://youtu.be/2KlEA-aqqO0?si=uLx5el1cEzdsPk8X","duration_minutes":19,"credential":"Board-Certified Dermatologist","category":"hair_fall","difficulty":"beginner","keywords":["hair_fall","hair_loss","women","alopecia","awareness"] },
+
+{ "id":"v_002","title":"Why Is My Hair Falling Out?","channel":"Dr Dray","url":"https://youtu.be/2KlEA-aqqO0?si=uLx5el1cEzdsPk8X","duration_minutes":19,"credential":"Board-Certified Dermatologist","category":"hair_fall","difficulty":"beginner","keywords":["hair_fall","hair_loss","shedding","telogen_effluvium","awareness"] },
+
+{ "id":"v_003","title":"Minoxidil For Hair Loss — Complete Guide","channel":"Dr Dray","url":"https://youtu.be/HzgHE6eoMqE?si=fUtP2z5h6eozqiZN","duration_minutes":16,"credential":"Board-Certified Dermatologist","category":"hair_fall","difficulty":"intermediate","keywords":["hair_fall","minoxidil","hair_loss_treatment","rogaine","FDA_approved"] },
+
+{ "id":"v_004","title":"Rosemary Oil For Hair Growth — Science Review","channel":"Dr Dray","url":"https://youtu.be/rSGNXBCi0-g?si=fZq8Suz9RhK0_5w1","duration_minutes":16,"credential":"Board-Certified Dermatologist","category":"hair_growth","difficulty":"intermediate","keywords":["hair_growth","rosemary_oil","natural_remedies","clinical_study","hair_facts"] },
+
+{ "id":"v_005","title":"Hair Loss From Retinol & Accutane","channel":"Dr Dray","url":"https://youtu.be/DBiE_axp_rA?si=Te1H4OrTC_xAmJT5","duration_minutes":16,"credential":"Board-Certified Dermatologist","category":"hair_fall","difficulty":"intermediate","keywords":["hair_fall","medications","retinol","accutane","telogen_effluvium"] },
+
+{ "id":"v_006","title":"Best Oils For Hair Growth","channel":"Dr Dray","url":"https://youtu.be/7U8kmeOGK4M?si=WVmhFrrYLS0k7ito","duration_minutes":19,"credential":"Board-Certified Dermatologist","category":"hair_growth","difficulty":"beginner","keywords":["hair_growth","hair_oils","pumpkin_seed_oil","scalp_care","natural_remedies"] },
+
+{ "id":"v_007","title":"How To Get Rid Of Dandruff Permanently","channel":"Dr Dray","url":"https://youtu.be/Fn7yXUcaQ-Q?si=POyxCgQWocCv3Ga-","duration_minutes":21,"credential":"Board-Certified Dermatologist","category":"dandruff","difficulty":"beginner","keywords":["dandruff","seborrheic_dermatitis","flaky_scalp","ketoconazole","zinc_pyrithione"] },
+
+{ "id":"v_008","title":"Scalp Care 101 — Ultimate Routine","channel":"Dr Dray","url":"https://youtu.be/m_bPLPm7RSU?si=EVmOsUGpXzLF3YeU","duration_minutes":17,"credential":"Board-Certified Dermatologist","category":"scalp_care","difficulty":"beginner","keywords":["scalp_care","scalp_health","hair_care_routine","exfoliation","pH_balance"] },
+
+{ "id":"v_009","title":"How Often Should You Wash Your Hair?","channel":"Dr Dray","url":"https://youtu.be/Mh1u8bvAOAs?si=Dn5WiTs2-3GUVaYz","duration_minutes":13,"credential":"Board-Certified Dermatologist","category":"hair_care_routine","difficulty":"beginner","keywords":["hair_care_routine","shampooing","washing_frequency","scalp_care","hair_facts"] },
+
+{ "id":"v_010","title":"Postpartum Hair Loss — What To Expect","channel":"Dr Dray","url":"https://youtu.be/x0EgHLyP0Vo?si=Gmgcevh2Uc7-_CB3","duration_minutes":15,"credential":"Board-Certified Dermatologist","category":"postpartum_hairloss","difficulty":"beginner","keywords":["postpartum_hairloss","pregnancy","hormones","telogen_effluvium","hair_loss_awareness"] },
+
+{ "id":"v_011","title":"Vitamins & Supplements For Hair Growth","channel":"Dr Dray","url":"https://youtu.be/GY74KyrVMIw?si=O2HnoPxJsGXXsIaI","duration_minutes":23,"credential":"Board-Certified Dermatologist","category":"nutrition_diet","difficulty":"intermediate","keywords":["nutrition_diet","biotin","iron","zinc","vitamin_D"] },
+
+{ "id":"v_012","title":"Habits Sabotaging Your Hair Growth","channel":"Dr Dray","url":"https://youtu.be/ypHEYZb3n30?si=oRYnoZEHbr0n4tOz","duration_minutes":18,"credential":"Board-Certified Dermatologist","category":"hair_growth","difficulty":"beginner","keywords":["hair_growth","hair_mistakes","tight_hairstyles","nutritional_gaps","awareness"] },
+
+{ "id":"v_013","title":"Hair Shedding VS Hair Loss","channel":"Pillow Talk Derm","url":"https://youtu.be/G0gPxg94AuM?si=LkWjiaZYGriT399W","duration_minutes":12,"credential":"Board-Certified Dermatologist","category":"hair_fall","difficulty":"beginner","keywords":["hair_fall","hair_shedding","normal_vs_abnormal","dermatologist","awareness"] },
+
+{ "id":"v_014","title":"PRP, https://youtu.be/HzgHE6eoMqE?si=NifUeEVC9La8ITpc","channel":"Pillow Talk Derm","url":"https://www.youtube.com/watch?v=sVXhMpFCkGg","duration_minutes":16,"credential":"Board-Certified Dermatologist","category":"hair_fall","difficulty":"advanced","keywords":["hair_fall","PRP","finasteride","clinical_treatment","androgenetic_alopecia"] },
+
+{ "id":"v_015","title":"Alopecia Areata Explained","channel":"Pillow Talk Derm","url":"https://youtu.be/WmkuqbfEVLA?si=ciqwH8L153IHw9QJ","duration_minutes":14,"credential":"Board-Certified Dermatologist","category":"hair_fall","difficulty":"intermediate","keywords":["alopecia_areata","autoimmune","patchy_hair_loss","hair_loss_awareness","treatment_options"] },
+
+{ "id":"v_016","title":"Complete Curly Girl Method Routine","channel":"Manes by Mell","url":"https://youtu.be/B0Vu6UG-OE4?si=874zNg5_DN51UQXM","duration_minutes":35,"credential":"Licensed Cosmetologist","category":"curly_hair","difficulty":"beginner","keywords":["curly_hair","CGM","curly_girl_method","frizz_control","wash_day"] },
+
+{ "id":"v_017","title":"Why Your Curls Are Frizzy","channel":"Manes by Mell","url":"https://youtu.be/SZGMrEEOSaM?si=5-hyryb7zBDmDAN7","duration_minutes":28,"credential":"Licensed Cosmetologist","category":"curly_hair","difficulty":"intermediate","keywords":["curly_hair","frizzy_hair","humidity","porosity","product_application"] },
+
+{ "id":"v_018","title":"Deep Conditioning For Curly Hair","channel":"Manes by Mell","url":"https://youtu.be/1zAtlvKPNSk?si=mjunXAknXLFpcj7a","duration_minutes":22,"credential":"Licensed Cosmetologist","category":"curly_hair","difficulty":"beginner","keywords":["curly_hair","deep_conditioning","moisture","LOC_method","dry_hair"] },
+
+{ "id":"v_019","title":"Hair Type Guide 1A–4C","channel":"Naptural85","url":"https://youtu.be/HQNYypIMWiU?si=UMjyRXkCbvWBxEMZ","duration_minutes":18,"credential":"Natural Hair Expert","category":"hair_facts","difficulty":"beginner","keywords":["hair_type","curl_pattern","1A_to_4C","natural_hair","hair_facts"] },
+
+{ "id":"v_020","title":"Grow 4C Natural Hair Long","channel":"Naptural85","url":"https://youtu.be/Wuc756OzcI0?si=YoZmMzgKgTpBMcRt","duration_minutes":24,"credential":"Natural Hair Expert","category":"hair_growth","difficulty":"intermediate","keywords":["4C_hair","length_retention","protective_styles","hair_growth","natural_hair"] },
+
+{ "id":"v_021","title":"DIY Hair Masks For Every Problem","channel":"Naptural85","url":"https://youtu.be/Be8kWFInroo?si=aUFzckjpaLyy3SqK","duration_minutes":19,"credential":"Natural Hair Expert","category":"dry_hair","difficulty":"beginner","keywords":["DIY_hair_mask","natural_remedies","avocado_mask","honey_mask","dry_hair"] },
+
+{ "id":"v_022","title":"Beginner Hair Care Routine","channel":"Luxy Hair","url":"https://youtu.be/fB7ru9iH5Ao?si=jLlLytJJyjYTe8Qn","duration_minutes":16,"credential":"Professional Hair Education","category":"hair_care_routine","difficulty":"beginner","keywords":["beginner_routine","wash_condition","detangling","hair_basics","all_hair_types"] },
+
+{ "id":"v_023","title":"Repair Damaged Hair","channel":"Luxy Hair","url":"https://youtu.be/jJa4h3qPaKg?si=s-PuAQZbhpJ2AzUu","duration_minutes":20,"credential":"Professional Hair Education","category":"heat_damage","difficulty":"intermediate","keywords":["heat_damage","chemical_damage","bond_repair","protein_mask","moisture_restore"] },
+
+{ "id":"v_024","title":"How To Use Heat Protectant","channel":"Luxy Hair","url":"https://youtu.be/sn8JKzwQxiU?si=-ixtUjIw4SRHWBCx","duration_minutes":11,"credential":"Professional Hair Education","category":"heat_damage","difficulty":"beginner","keywords":["heat_protectant","prevent_heat_damage","flat_iron","styling_safety","temperature_control"] },
+
+{ "id":"v_025","title":"Maintain Color Treated Hair","channel":"Luxy Hair","url":"https://youtu.be/u2KTsv_6CeI?si=ckvv4HWqDst0GhN2","duration_minutes":17,"credential":"Professional Hair Education","category":"color_treated_hair","difficulty":"intermediate","keywords":["color_treated_hair","purple_shampoo","UV_protection","bond_repair","blonde_care"] },
+
+{ "id":"v_026","title":"Split Ends Explained","channel":"Brad Mondo","url":"https://youtu.be/pA6FaBIa3iM?si=_x_rUzg94_JD8kTX","duration_minutes":14,"credential":"Celebrity Hairstylist","category":"split_ends","difficulty":"beginner","keywords":["split_ends","hair_damage","trimming","damaged_ends","prevention"] },
+
+{ "id":"v_027","title":"Things Damaging Your Hair","channel":"Brad Mondo","url":"https://youtu.be/53RGJwhSjN4?si=dwAi6PqTW2GfkCvr","duration_minutes":18,"credential":"Celebrity Hairstylist","category":"hair_care_routine","difficulty":"beginner","keywords":["hair_myths","hair_damage","wet_brushing","towel_drying","awareness"] },
+
+{ "id":"v_028","title":"Oily Scalp & Greasy Hair Fix","channel":"Brad Mondo","url":"https://youtu.be/gYJSqzI6ugk?si=J1ZS-rH5mDqjk3rP","duration_minutes":15,"credential":"Celebrity Hairstylist","category":"oily_hair","difficulty":"beginner","keywords":["oily_hair","greasy_scalp","sebum_control","clarifying_shampoo","scalp_balance"] },
+
+{ "id":"v_029","title":"Protein Treatment For Hair","channel":"India Batson","url":"https://youtu.be/oe3QUuutSaY?si=F4RQ5zRQyP0b3vpQ","duration_minutes":21,"credential":"Curly Hair Educator","category":"dry_hair","difficulty":"intermediate","keywords":["protein_treatment","keratin","moisture_protein_balance","damaged_hair","repair"] },
+
+{ "id":"v_030","title":"Hair Porosity Explained","channel":"India Batson","url":"https://youtu.be/syicQjKl6II?si=1qiyjKcaLEcsP6bc","duration_minutes":17,"credential":"Curly Hair Educator","category":"hair_facts","difficulty":"intermediate","keywords":["hair_porosity","low_porosity","high_porosity","hair_science","routine_building"] },
+
+{ "id":"v_031","title":"Scalp Massager For Hair Growth","channel":"Dr Dray","url":"https://youtu.be/75URNc7CcHw?si=1tF-Mfvi7RsU7I6l","duration_minutes":12,"credential":"Board-Certified Dermatologist","category":"scalp_care","difficulty":"intermediate","keywords":["scalp_massage","hair_growth","dermarolling","microneedling","clinical_evidence"] },
+
+{ "id":"v_032","title":"The Science Of Hair","channel":"American Academy of Dermatology","url":"https://youtu.be/6ZrlsVx85ek?si=f6tzBqMpQ_1cxA-i","duration_minutes":9,"credential":"Official Medical Body","category":"hair_facts","difficulty":"beginner","keywords":["hair_structure","anagen_catagen_telogen","growth_cycle","hair_anatomy","normal_shedding"] },
+
+{ "id":"v_033","title":"Treat Dry & Damaged Hair","channel":"American Academy of Dermatology","url":"https://youtu.be/ZjalNllMra8?si=8WXzrra54Ps-wkV7","duration_minutes":7,"credential":"Official Medical Body","category":"dry_hair","difficulty":"beginner","keywords":["dry_hair","damaged_hair","conditioning","protective_habits","AAD_guidelines"] },
+
+{ "id":"v_034","title":"Male Pattern Hair Loss Explained","channel":"American Academy of Dermatology","url":"https://youtu.be/tkF54Oc-uxo?si=AIJfrY4dimySjyrF","duration_minutes":8,"credential":"Official Medical Body","category":"hair_fall","difficulty":"beginner","keywords":["male_pattern_baldness","androgenetic_alopecia","DHT","norwood_scale","treatment_options"] },
+
+{ "id":"v_035","title":"Traction Alopecia Awareness","channel":"American Academy of Dermatology","url":"https://youtu.be/UnVPzcQIK7E?si=R0yRcgFQ2zuBpmtW","duration_minutes":6,"credential":"Official Medical Body","category":"hair_loss_awareness","difficulty":"beginner","keywords":["traction_alopecia","tight_hairstyles","protective_styles","hairline_loss","prevention"] },
+
+{ "id":"v_036","title":"Thyroid & Hair Loss Connection","channel":"Dr Dray","url":"https://youtu.be/-3YNJi6_ANE?si=SvAl-4ywa9FtThbs","duration_minutes":16,"credential":"Board-Certified Dermatologist","category":"hair_loss_awareness","difficulty":"intermediate","keywords":["thyroid","hypothyroidism","hormonal_hair_loss","TSH_levels","labs"] },
+
+{ "id":"v_037","title":"Iron Deficiency & Hair Loss","channel":"Dr Dray","url":"https://youtu.be/8d7vaj5Lrn0?si=x1aJphZ54aPpjW-I","duration_minutes":18,"credential":"Board-Certified Dermatologist","category":"nutrition_diet","difficulty":"intermediate","keywords":["iron_deficiency","ferritin","hair_shedding","nutrition","blood_tests"] },
+
+{ "id":"v_038","title":"PCOS & Hair Loss In Women","channel":"Dr Dray","url":"https://youtu.be/0LKuK6UT_HY?si=oTxnAhDQCSrVHW7C","duration_minutes":20,"credential":"Board-Certified Dermatologist","category":"hair_loss_awareness","difficulty":"intermediate","keywords":["PCOS","androgen_excess","female_hair_loss","hormones","treatment_options"] },
+
+{ "id":"v_039","title":"10 Surprising Hair Facts","channel":"Luxy Hair","url":"https://youtu.be/vU7Zc015-AY?si=j8rJN2p60kFdk4Rt","duration_minutes":10,"credential":"Professional Hair Education","category":"hair_facts","difficulty":"beginner","keywords":["hair_facts","hair_trivia","hair_strength","keratin","DNA"] },
+
+{ "id":"v_040","title":"How Diet Affects Hair Health","channel":"Luxy Hair","url":"https://youtu.be/TvWs8PZ8Pr4?si=d9BR4B0f0ogaSSbw","duration_minutes":14,"credential":"Professional Hair Education","category":"nutrition_diet","difficulty":"beginner","keywords":["hair_nutrition","protein_intake","omega_3","iron","healthy_diet"] },
+
+{ "id":"v_041","title":"How To Stop Hair Breakage","channel":"Luxy Hair","url":"https://youtu.be/XtDbWUngeu0?si=l3KDxqi0PNXm2pFJ","duration_minutes":13,"credential":"Professional Hair Education","category":"split_ends","difficulty":"beginner","keywords":["hair_breakage","strong_hair","detangling","sleep_protection","heat_control"] },
+
+{ "id":"v_042","title":"Bleached Hair Care Guide","channel":"Brad Mondo","url":"https://youtu.be/0O8BFov8tME?si=RmGU31_AsXLf-xW2","duration_minutes":22,"credential":"Celebrity Hairstylist","category":"color_treated_hair","difficulty":"intermediate","keywords":["bleached_hair","bond_repair","toning","moisturizing","color_longevity"] },
+
+{ "id":"v_043","title":"Rice Water For Hair Growth","channel":"Dr Dray","url":"https://youtu.be/xpRre1a7Zfg?si=F6ZjAUMh7oi2VQzp","duration_minutes":13,"credential":"Board-Certified Dermatologist","category":"hair_growth","difficulty":"beginner","keywords":["rice_water","inositol","natural_remedies","hair_growth","fermented_rice"] },
+
+{ "id":"v_044","title":"Stress & Hair Loss Explained","channel":"Dr Dray","url":"https://youtu.be/B5LUrapBMUk?si=DCxA2u7RNOP7WF_t","duration_minutes":15,"credential":"Board-Certified Dermatologist","category":"hair_loss_awareness","difficulty":"beginner","keywords":["stress","cortisol","telogen_effluvium","lifestyle","hair_cycle"] },
+
+{ "id":"v_045","title":"Natural Hair Routine For 4C","channel":"Naptural85","url":"https://youtu.be/CzVKsPQVBTg?si=hzCh9kyP45XqTpvF","duration_minutes":28,"credential":"Natural Hair Expert","category":"hair_care_routine","difficulty":"beginner","keywords":["4C_hair","coily_hair","wash_day","moisturizing","detangling"] },
+
+{ "id":"v_046","title":"How To Get Rid Of Itchy Scalp","channel":"Dr Dray","url":"https://youtu.be/Fn7yXUcaQ-Q?si=uOj9eveMdZ5kkHvY","duration_minutes":19,"credential":"Board-Certified Dermatologist","category":"scalp_care","difficulty":"intermediate","keywords":["itchy_scalp","seborrheic_dermatitis","psoriasis","contact_dermatitis","treatment"] },
+
+{ "id":"v_047","title":"Hair Shedding After COVID","channel":"Dr Dray","url":"https://youtu.be/P8Ygwl4Ohig?si=BDcZus2ow1WC8EaI","duration_minutes":14,"credential":"Board-Certified Dermatologist","category":"hair_loss_awareness","difficulty":"beginner","keywords":["COVID_hair_loss","post_illness_shedding","telogen_effluvium","recovery","hair_regrowth"] },
+
+{ "id":"v_048","title":"Truth About Hair Growth Oils","channel":"Manes by Mell","url":"https://youtu.be/ZBeqxiiCSDw?si=jQ_DAbQPVdq1F8e8","duration_minutes":20,"credential":"Licensed Cosmetologist","category":"hair_growth","difficulty":"beginner","keywords":["castor_oil","coconut_oil","argan_oil","oil_penetration","hair_growth_myths"] },
+
+{ "id":"v_049","title":"Hair Elasticity Test Guide","channel":"India Batson","url":"https://youtu.be/ClxNbERD1DU?si=T4OvQBX6-q8f4W_N","duration_minutes":12,"credential":"Curly Hair Educator","category":"hair_facts","difficulty":"beginner","keywords":["hair_elasticity","protein_deficiency","moisture_deficiency","hair_health_test","diagnostics"] },
+
+{ "id":"v_050","title":"Gray Hair — Why It Happens","channel":"Dr Dray","url":"https://youtu.be/KLdiqECnnME?si=7liBOE2LQ_XrqWtX","duration_minutes":16,"credential":"Board-Certified Dermatologist","category":"hair_facts","difficulty":"beginner","keywords":["gray_hair","melanin","oxidative_stress","genetics","premature_graying"] },
+
+{ "id":"v_051","title":"Biotin For Hair Growth — Honest Truth","channel":"Dr Dray","url":"https://youtu.be/o00xuoT_8Oo?si=jDHcxn_X_wgKXcST","duration_minutes":11,"credential":"Board-Certified Dermatologist","category":"nutrition_diet","difficulty":"beginner","keywords":["biotin","vitamin_B7","supplements","hair_growth","dosage"] },
+
+{ "id":"v_052","title":"Female Pattern Hair Loss Explained","channel":"Dr Dray","url":"https://youtu.be/krqUx7qD82A?si=HkkiJUlhKEtTTu-1","duration_minutes":22,"credential":"Board-Certified Dermatologist","category":"hair_loss_awareness","difficulty":"intermediate","keywords":["FPHL","ludwig_scale","DHT_sensitivity","thinning_crown","treatment_ladder"] },
+
+{ "id":"v_053","title":"Low vs High Porosity Wash Routine","channel":"Naptural85","url":"https://youtu.be/WsnKdrT5JI4?si=U0c5yyzF6slZE21e","duration_minutes":25,"credential":"Natural Hair Expert","category":"curly_hair","difficulty":"intermediate","keywords":["low_porosity","high_porosity","wash_day","product_absorption","water_temperature"] },
+
+{ "id":"v_054","title":"Dry Scalp vs Dandruff","channel":"Dr Dray","url":"https://youtu.be/bTCV6oMcZUE?si=bharducqZUmlPYDm","duration_minutes":12,"credential":"Board-Certified Dermatologist","category":"dandruff","difficulty":"beginner","keywords":["dry_scalp","dandruff_difference","flake_types","scalp_conditions","treatment_protocol"] },
+
+{ "id":"v_055","title":"Hair Care Myths Debunked","channel":"Brad Mondo","url":"https://youtu.be/RQf3VT-j5nc?si=m-PbroyyFQBmWlce","duration_minutes":17,"credential":"Celebrity Hairstylist","category":"hair_facts","difficulty":"beginner","keywords":["hair_myths","trimming_growth","cold_water_shine","DIY_masks","science_vs_myth"] },
+
+{ "id":"v_056","title":"Olaplex Explained — Bond Repair Science","channel":"Brad Mondo","url":"https://youtu.be/V7UlWTU_K6s?si=ioJQzWCiAqJiRlUq","duration_minutes":16,"credential":"Celebrity Hairstylist","category":"color_treated_hair","difficulty":"intermediate","keywords":["olaplex","bond_repair","disulfide_bonds","K18","chemical_damage"] },
+
+{ "id":"v_057","title":"Scalp Fungal Infections — Tinea Capitis","channel":"Dr Dray","url":"https://youtu.be/0hx2DWQKtwY?si=34qUkFb4cBbiwyM_","duration_minutes":15,"credential":"Board-Certified Dermatologist","category":"scalp_care","difficulty":"intermediate","keywords":["tinea_capitis","scalp_fungus","ringworm","antifungal_treatment","hair_loss_risk"] },
+
+{ "id":"v_058","title":"Build A Minimal Hair Care Routine","channel":"Manes by Mell","url":"https://youtu.be/4vKqeTX6g4Y?si=Mg9i-dnDxWIBXhhe","duration_minutes":19,"credential":"Licensed Cosmetologist","category":"hair_care_routine","difficulty":"beginner","keywords":["minimal_routine","simple_products","hair_essentials","beginner_friendly","routine_building"] },
+
+{ "id":"v_059","title":"Low Porosity Hair Guide","channel":"India Batson","url":"https://youtu.be/u318oE8hdW4?si=KfO9wIOPQKfS3Jf4","duration_minutes":18,"credential":"Curly Hair Educator","category":"hair_facts","difficulty":"intermediate","keywords":["low_porosity","cuticle_layer","product_absorption","heat_cap","hydration_strategy"] },
+
+{ "id":"v_060","title":"Chemotherapy & Hair Loss Timeline","channel":"American Academy of Dermatology","url":"https://youtu.be/2okkQNlAVWI?si=sqo5LzoQscZv8OHe","duration_minutes":8,"credential":"Official Medical Body","category":"hair_loss_awareness","difficulty":"beginner","keywords":["chemotherapy","hair_regrowth","scalp_cooling","cancer_treatment","recovery_timeline"] }
+
+],
+
+  "keyword_index": {
+
+"hair_fall": {
+"videos": ["v_001","v_002","v_003","v_005","v_010","v_013","v_014","v_015","v_034","v_036","v_037","v_038","v_044","v_047","v_052","v_060"],
+"websites": ["w_001","w_003","w_004","w_006","w_007","w_008","w_012","w_013"]
+},
+
+"dandruff": {
+"videos": ["v_007","v_046","v_054","v_057"],
+"websites": ["w_002","w_018","w_019","w_020"]
+},
+
+"hair_growth": {
+"videos": ["v_004","v_006","v_012","v_020","v_031","v_040","v_043","v_048"],
+"websites": ["w_009","w_010"]
+},
+
+"hair_care_routine": {
+"videos": ["v_008","v_009","v_022","v_023","v_024","v_025","v_027","v_033","v_045","v_058"],
+"websites": ["w_011"]
+},
+
+"scalp_care": {
+"videos": ["v_007","v_008","v_031","v_046","v_054","v_057"],
+"websites": ["w_016","w_017"]
+},
+
+"dry_hair": {
+"videos": ["v_017","v_018","v_021","v_023","v_029","v_033"],
+"websites": []
+},
+
+"oily_hair": {
+"videos": ["v_028"],
+"websites": []
+},
+
+"curly_hair": {
+"videos": ["v_016","v_017","v_018","v_019","v_020","v_045"],
+"websites": []
+},
+
+"color_treated_hair": {
+"videos": ["v_023","v_025","v_042","v_056"],
+"websites": []
+},
+
+"heat_damage": {
+"videos": ["v_023","v_024","v_042"],
+"websites": ["w_011"]
+},
+
+"nutrition_diet": {
+"videos": ["v_011","v_037","v_040","v_051"],
+"websites": []
+},
+
+"hair_facts": {
+"videos": ["v_019","v_030","v_032","v_039","v_049","v_050","v_055","v_059"],
+"websites": []
+},
+
+"postpartum_hairloss": {
+"videos": ["v_010"],
+"websites": []
+},
+
+"hair_loss_awareness": {
+"videos": ["v_002","v_005","v_014","v_015","v_034","v_035","v_036","v_038","v_044","v_047","v_052","v_057","v_060"],
+"websites": ["w_004","w_005","w_006","w_007","w_008"]
+},
+
+"split_ends": {
+"videos": ["v_026","v_029","v_041","v_056"],
+"websites": []
+},
+
+"alopecia": {
+"videos": ["v_015","v_034","v_035","v_052"],
+"websites": ["w_014","w_015"]
+},
+
+"natural_remedies": {
+"videos": ["v_004","v_006","v_021","v_043","v_048"],
+"websites": []
+}
+
+},
+
+  "channel_profiles": {
+    "dr_dray": {
+      "name": "Dr Dray (Dr Andrea Suarez)",
+      "channel_url": "https://www.youtube.com/@DrDray",
+      "channel_id": "UCgz_9PaFKfcm4fmGMCDFNeA",
+      "credential": "Board-Certified Dermatologist",
+      "subscribers": "1.5M+",
+      "specialty": "Evidence-based dermatology, hair loss, scalp health",
+      "trust_level": "high",
+      "video_ids_in_collection": ["v_001","v_002","v_003","v_004","v_005","v_006","v_007","v_008","v_009","v_010","v_011","v_012","v_031","v_036","v_037","v_038","v_043","v_044","v_046","v_047","v_050","v_051","v_052","v_054","v_057"]
+    },
+    "pillow_talk_derm": {
+      "name": "Pillow Talk Derm (Dr Shereene Idriss)",
+      "channel_url": "https://www.youtube.com/@PillowTalkDerm",
+      "channel_id": "UCdEzj2JVbO3O5nMoNzGb0oA",
+      "credential": "Board-Certified Dermatologist — Icahn School of Medicine, Mount Sinai NYC",
+      "subscribers": "600K+",
+      "specialty": "Dermatology, hair loss treatments, myth-busting",
+      "trust_level": "high",
+      "video_ids_in_collection": ["v_013","v_014","v_015"]
+    },
+    "manes_by_mell": {
+      "name": "Manes by Mell (Mell Guido)",
+      "channel_url": "https://www.youtube.com/@ManesByMell",
+      "channel_id": "UCHFrPzrWPe6S7xjAh6cS3sA",
+      "credential": "Licensed Cosmetologist — Curl Specialist",
+      "subscribers": "600K+",
+      "specialty": "Curly hair, CGM method, frizz control",
+      "trust_level": "high",
+      "video_ids_in_collection": ["v_016","v_017","v_018","v_048","v_058"]
+    },
+    "naptural85": {
+      "name": "Naptural85 (Whitney White)",
+      "channel_url": "https://www.youtube.com/@Naptural85",
+      "channel_id": "UC0pM-mZMtXCqODO3LzqXoeg",
+      "credential": "Natural Hair Expert",
+      "subscribers": "1M+",
+      "specialty": "4C hair, natural hair growth, protective styles",
+      "trust_level": "high",
+      "video_ids_in_collection": ["v_019","v_020","v_021","v_045","v_053"]
+    },
+    "brad_mondo": {
+      "name": "Brad Mondo",
+      "channel_url": "https://www.youtube.com/@BradMondo",
+      "channel_id": "UCQdgRBCo6kZhMJVSEpnBRhw",
+      "credential": "Celebrity Hairstylist & Educator",
+      "subscribers": "8M+",
+      "specialty": "Styling, damage repair, myth-busting",
+      "trust_level": "high",
+      "video_ids_in_collection": ["v_026","v_027","v_028","v_042","v_055","v_056"]
+    },
+    "luxy_hair": {
+      "name": "Luxy Hair",
+      "channel_url": "https://www.youtube.com/@LuxyHair",
+      "channel_id": "UCk0K8RKCqnvMIjG4SqU5FVA",
+      "credential": "Professional Hair Education Channel",
+      "subscribers": "3M+",
+      "specialty": "Hair routines, damage repair, color care, growth tips",
+      "trust_level": "high",
+      "video_ids_in_collection": ["v_022","v_023","v_024","v_025","v_039","v_040","v_041"]
+    },
+    "india_batson": {
+      "name": "India Batson",
+      "channel_url": "https://www.youtube.com/@IndiaBatson",
+      "channel_id": "UCXFStNqLLODkDFKEz-RQVCA",
+      "credential": "Curly Hair Educator",
+      "subscribers": "500K+",
+      "specialty": "Porosity science, protein-moisture balance, curly hair",
+      "trust_level": "high",
+      "video_ids_in_collection": ["v_029","v_030","v_049","v_059"]
+    },
+    "american_academy_of_dermatology": {
+      "name": "American Academy of Dermatology (AAD)",
+      "channel_url": "https://www.youtube.com/@AADskin",
+      "channel_id": "UCdvNBQ8BIYIOX-TgvHdAZxA",
+      "credential": "Official Medical Body — Board-Certified Dermatologists",
+      "subscribers": "200K+",
+      "specialty": "Medical-grade hair and scalp education, official clinical guidelines",
+      "trust_level": "highest",
+      "video_ids_in_collection": ["v_032","v_033","v_034","v_035","v_060"]
+    }
+  }
+}
