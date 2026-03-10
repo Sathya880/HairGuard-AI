@@ -242,7 +242,7 @@ router.post("/simulate", authMiddleware, async (req, res) => {
     };
 
     // ── 3. Call Python SimulationEngine ──────────────────────────────────────
-    const FLASK_URL = process.env.FLASK_URL || "https://hairguard-ai.onrender.com";
+    const FLASK_URL = process.env.FLASK_URL || "https://sathyaj8-hairguard-ai.hf.space";
     let simResult = null;
 
     try {

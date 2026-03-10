@@ -8,7 +8,7 @@ const notifService = require("../services/notifications.service");
 
 router.use(authMiddleware);
 
-const PYTHON_AI_URL = process.env.PYTHON_AI_URL || "https://hairguard-ai.onrender.com";
+const PYTHON_AI_URL = process.env.PYTHON_AI_URL || "https://sathyaj8-hairguard-ai.hf.space";
 
 /* ─────────────────────────────────────────────
    Helpers
