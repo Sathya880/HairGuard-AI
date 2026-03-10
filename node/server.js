@@ -10,7 +10,7 @@ const axios = require("axios");
 const { v4: uuidv4 } = require("uuid");
 require("dotenv").config();
 
-const pLimit = require("p-limit").default;
+const pLimit = require("p-limit");
 const aiLimiter = pLimit(2);
 
 
