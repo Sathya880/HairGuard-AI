@@ -31,7 +31,7 @@ const ViewSeveritySchema = new mongoose.Schema(
       max: 1,
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 /* =====================================================
@@ -64,11 +64,10 @@ const AIResultSchema = new mongoose.Schema(
     /* IMAGES */
 
     images: {
-      top: String,
+      top: { type: String, required: true },
       front: String,
       back: String,
     },
-
     /* HAIRLOSS */
 
     hairloss: {
@@ -92,11 +91,10 @@ const AIResultSchema = new mongoose.Schema(
       overlayImageUrl: String, // only top overlay
 
       views: {
-        top: ViewSeveritySchema,
-        front: ViewSeveritySchema,
-        back: ViewSeveritySchema,
+        top: { type: ViewSeveritySchema, default: {} },
+        front: { type: ViewSeveritySchema, default: {} },
+        back: { type: ViewSeveritySchema, default: {} },
       },
-
       summary: String,
     },
 
@@ -190,7 +188,7 @@ const AIResultSchema = new mongoose.Schema(
   {
     timestamps: true,
     strict: true,
-  }
+  },
 );
 
 /* INDEXES */
@@ -203,7 +201,12 @@ AIResultSchema.index(
   {
     unique: true,
     partialFilterExpression: { status: "processing" },
-  }
+  },
+);
+
+AIResultSchema.index(
+  { createdAt: 1 },
+  { expireAfterSeconds: 86400, partialFilterExpression: { status: "failed" } }
 );
 
 module.exports =

@@ -6,39 +6,31 @@ const LocalStrategy = require("passport-local").Strategy;
 const cors = require("cors");
 const helmet = require("helmet");
 const axios = require("axios");
-const multer = require("multer");
+
 const { v4: uuidv4 } = require("uuid");
 require("dotenv").config();
+const pLimit = require("p-limit");
+const aiLimiter = pLimit(2); // only 2 AI calls at once
 
-require("dns").setDefaultResultOrder("ipv4first");
-const dns = require("dns");
-dns.setServers(["8.8.8.8", "8.8.4.4"]);
-dns.setDefaultResultOrder("ipv4first");
 
 /* ── MODELS ──────────────────────────────────────── */
 const User = require("./models/User");
 const authenticateUser = require("./middleware/auth");
 const Flashcard = require("./models/Flashcard");
 const UserAnswer = require("./models/UserAnswer");
-const AiResult         = require("./models/AIResult");
+const AiResult = require("./models/AIResult");
 const UserIntelligence = require("./models/UserIntelligence");
-const { uploadToS3 }   = require("./services/s3.service");
 
 /* ── IN-APP NOTIFICATION SERVICE ─────────────────── */
 const notifService = require("./services/notifications.service");
 
 const app = express();
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
-});
 
 /* ── ENV ─────────────────────────────────────────── */
 const PORT = process.env.PORT || 5000;
 const SESSION_SECRET = process.env.SESSION_SECRET || "hair_app_secret";
 const PYTHON_AI_URL =
-  process.env.PYTHON_AI_URL ||
-  "https://sathyaj8-hairguard-ai.hf.space";
+  process.env.PYTHON_AI_URL || "https://sathyaj8-hairguard-ai.hf.space";
 
 const connectDB = require("./config/db");
 connectDB();
@@ -61,6 +53,59 @@ app.use(
   }),
 );
 
+// ─────────────────────────────────────────────
+// S3 PRESIGNED UPLOAD URL (SECURE)
+// ─────────────────────────────────────────────
+
+const AWS = require("aws-sdk");
+
+const s3 = new AWS.S3({
+  region: process.env.AWS_REGION,
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+});
+
+const S3_BUCKET = process.env.AWS_BUCKET_NAME;
+
+app.post("/api/upload/presign", authenticateUser, async (req, res) => {
+  try {
+    const { filename, contentType, username } = req.body;
+
+    if (!filename || !contentType) {
+      return res.status(400).json({
+        success: false,
+        message: "filename and contentType required",
+      });
+    }
+
+    const uniqueId = uuidv4();
+
+    const key = `hair/${username}/${uniqueId}_${filename}`;
+
+    const params = {
+      Bucket: S3_BUCKET,
+      Key: key,
+      Expires: 60,
+      ContentType: contentType,
+    };
+
+    const uploadUrl = await s3.getSignedUrlPromise("putObject", params);
+
+    return res.json({
+      success: true,
+      uploadUrl,
+      key,
+    });
+  } catch (err) {
+    console.error("Presign error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate upload URL",
+    });
+  }
+});
+
 /* ── PASSPORT ────────────────────────────────────── */
 app.use(passport.initialize());
 app.use(passport.session());
@@ -75,13 +120,19 @@ debugPaths();
 // Quick sanity check — logs how many facts loaded on boot
 const categories = readKnowledge();
 const total = categories.reduce((acc, c) => acc + (c.facts?.length || 0), 0);
-console.log(`[Startup] Hair Knowledge: ${categories.length} categories, ${total} facts loaded`);
+console.log(
+  `[Startup] Hair Knowledge: ${categories.length} categories, ${total} facts loaded`,
+);
 
 if (total === 0) {
   console.error("⚠️  [Startup] ZERO facts loaded from hairKnowledge.json!");
   console.error("    → Check that the file exists at the path shown above.");
-  console.error("    → Check that it is a valid JSON array of category objects.");
-  console.error("    → Each category must have isActive: true and a non-empty facts[] array.");
+  console.error(
+    "    → Check that it is a valid JSON array of category objects.",
+  );
+  console.error(
+    "    → Each category must have isActive: true and a non-empty facts[] array.",
+  );
 }
 
 /* ── AUTH ROUTES ─────────────────────────────────── */
@@ -104,8 +155,8 @@ app.use("/api/chatbot", chatbotRoute);
 app.use("/api/routine", routineRoutes);
 app.use("/api/streak", routineRoutes);
 
-const adminRouter = require('./routes/admin');
-app.use('/api/admin', adminRouter);
+const adminRouter = require("./routes/admin");
+app.use("/api/admin", adminRouter);
 
 // ── Assistant routes (behavioral coaching + AI Hair Coach) ───────────────
 const assistantRoute = require("./routes/assistant.route");
@@ -117,26 +168,30 @@ app.use("/api/facts-learning", factsLearningRoutes);
 
 // ── Helper for AI analyze notification ───────────────────────────────────
 function normalizeFactor(factor = "") {
-  return factor.toString().toLowerCase().trim()
-    .replace(/-/g, "_").replace(/\s+/g, "_");
+  return factor
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/-/g, "_")
+    .replace(/\s+/g, "_");
 }
 
 /* ── Per-task emoji assignment ───────────────────── */
 function getTaskEmoji(title = "", category = "") {
   const t = (title || "").toLowerCase();
-  if (t.includes("massage") || t.includes("scalp"))   return "💆";
-  if (t.includes("shampoo"))                           return "🧴";
-  if (t.includes("serum") || t.includes("growth"))    return "💊";
-  if (t.includes("oil"))                               return "🫙";
-  if (t.includes("braid") || t.includes("comb"))      return "💇";
-  if (t.includes("water") || t.includes("hydrat"))    return "💧";
-  if (t.includes("meditat") || t.includes("breath"))  return "🧘";
-  if (t.includes("protein") || t.includes("diet"))    return "🥗";
-  if (t.includes("consult") || t.includes("dermat"))  return "👨‍⚕️";
-  if (t.includes("sleep"))                             return "😴";
-  if (t.includes("detangle"))                          return "💇";
-  if (category === "morning")                          return "🌅";
-  if (category === "night")                            return "🌙";
+  if (t.includes("massage") || t.includes("scalp")) return "💆";
+  if (t.includes("shampoo")) return "🧴";
+  if (t.includes("serum") || t.includes("growth")) return "💊";
+  if (t.includes("oil")) return "🫙";
+  if (t.includes("braid") || t.includes("comb")) return "💇";
+  if (t.includes("water") || t.includes("hydrat")) return "💧";
+  if (t.includes("meditat") || t.includes("breath")) return "🧘";
+  if (t.includes("protein") || t.includes("diet")) return "🥗";
+  if (t.includes("consult") || t.includes("dermat")) return "👨‍⚕️";
+  if (t.includes("sleep")) return "😴";
+  if (t.includes("detangle")) return "💇";
+  if (category === "morning") return "🌅";
+  if (category === "night") return "🌙";
   return "✅";
 }
 
@@ -146,35 +201,43 @@ function getTaskEmoji(title = "", category = "") {
  */
 async function _autoGenerateRoutine(userId, finalResult) {
   try {
-    const today          = new Date().toISOString().split("T")[0];
-    const hairlossSev    = finalResult.hairloss?.overallSeverity || "moderate";
-    const dandruffSev    = finalResult.dandruff?.severity        || "moderate";
-    const rootCause      = finalResult.rootCause?.primary        || "general";
-    const lifestyleScore = finalResult.lifestyle?.overallScore
-                        ?? finalResult.lifestyle?.overall_score ?? 50;
-    const healthScore    = finalResult.health?.score ?? 50;
+    const today = new Date().toISOString().split("T")[0];
+    const hairlossSev = finalResult.hairloss?.overallSeverity || "moderate";
+    const dandruffSev = finalResult.dandruff?.severity || "moderate";
+    const rootCause = finalResult.rootCause?.primary || "general";
+    const lifestyleScore =
+      finalResult.lifestyle?.overallScore ??
+      finalResult.lifestyle?.overall_score ??
+      50;
+    const healthScore = finalResult.health?.score ?? 50;
 
     const pyRes = await axios.post(
       `${PYTHON_AI_URL}/adaptive-routine`,
-      { hairlossSeverity: hairlossSev, dandruffSeverity: dandruffSev,
-        rootCause, lifestyleScore, healthScore,
-        humidity: "normal", pollutionLevel: "moderate" },
+      {
+        hairlossSeverity: hairlossSev,
+        dandruffSeverity: dandruffSev,
+        rootCause,
+        lifestyleScore,
+        healthScore,
+        humidity: "normal",
+        pollutionLevel: "moderate",
+      },
       { timeout: 15000 },
     );
 
     const routineData = pyRes.data?.routine || pyRes.data || {};
-    const flatTasks   = [];
+    const flatTasks = [];
 
     for (const [slot, items] of Object.entries(routineData)) {
       if (Array.isArray(items)) {
-        items.forEach(t => {
+        items.forEach((t) => {
           const title = t.task || t.title || t.name || "Task";
           flatTasks.push({
             title,
-            category:    slot === "mid_day" ? "daily" : slot,
-            emoji:       getTaskEmoji(title, slot),
-            xp:          t.xp ?? 10,
-            completed:   false,
+            category: slot === "mid_day" ? "daily" : slot,
+            emoji: getTaskEmoji(title, slot),
+            xp: t.xp ?? 10,
+            completed: false,
             completedAt: null,
           });
         });
@@ -186,18 +249,25 @@ async function _autoGenerateRoutine(userId, finalResult) {
     let intel = await UserIntelligence.findOne({ userId });
     if (!intel) intel = await UserIntelligence.create({ userId });
 
-    const idx = intel.routines.findIndex(r => r.date === today);
+    const idx = intel.routines.findIndex((r) => r.date === today);
     if (idx >= 0) {
-      intel.routines[idx].tasks   = flatTasks;
+      intel.routines[idx].tasks = flatTasks;
       intel.routines[idx].allDone = false;
       intel.routines[idx].totalXP = 0;
     } else {
-      intel.routines.push({ date: today, tasks: flatTasks,
-        totalXP: 0, allDone: false, adherenceScore: 0 });
+      intel.routines.push({
+        date: today,
+        tasks: flatTasks,
+        totalXP: 0,
+        allDone: false,
+        adherenceScore: 0,
+      });
     }
     await intel.save();
 
-    console.log(`[Routine] ✅ Auto-generated ${flatTasks.length} personalised tasks for user ${userId}`);
+    console.log(
+      `[Routine] ✅ Auto-generated ${flatTasks.length} personalised tasks for user ${userId}`,
+    );
   } catch (err) {
     console.error("[Routine] Auto-generate error:", err.message);
   }
@@ -305,207 +375,225 @@ app.post(
 /* ═══════════════════════════════════════════════════
    AI ANALYZE — MULTI VIEW
 ═══════════════════════════════════════════════════ */
-app.post(
-  "/api/ai/analyze",
-  authenticateUser,
-  upload.fields([
-    { name: "top_image", maxCount: 1 },
-    { name: "front_image", maxCount: 1 },
-    { name: "back_image", maxCount: 1 },
-  ]),
-  async (req, res) => {
-    const userId = req.user?._id;
-    if (!userId) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
-    }
-    if (!req.files || !req.files.top_image) {
-      return res
-        .status(400)
-        .json({ success: false, message: "top_image is required" });
-    }
+// ═══════════════════════════════════════════════════
+// AI ANALYZE — S3 URL PIPELINE
+// ═══════════════════════════════════════════════════
 
-    let aiRecord = null;
+app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
+  const userId = req.user?._id;
 
-    try {
-      try {
-        aiRecord = await AiResult.create({
-          userId,
-          type: "hair_analysis",
-          status: "processing",
-          images: { top: "temp" },
-        });
-      } catch (err) {
-        if (err.code === 11000) {
-          return res.status(400).json({
-            success: false,
-            message: "Analysis already in progress",
-          });
-        }
-        throw err;
-      }
-
-      const topFile = req.files.top_image[0];
-      const frontFile = req.files.front_image?.[0];
-      const backFile = req.files.back_image?.[0];
-      const username = req.user?.username ?? userId.toString();
-
-      const topImageUrl = await uploadToS3(topFile, `hair/${username}/top`);
-      const frontImageUrl = frontFile
-        ? await uploadToS3(frontFile, `hair/${username}/front`)
-        : null;
-      const backImageUrl = backFile
-        ? await uploadToS3(backFile, `hair/${username}/back`)
-        : null;
-
-      await AiResult.findByIdAndUpdate(aiRecord._id, {
-        images: { top: topImageUrl, front: frontImageUrl, back: backImageUrl },
-      });
-
-      const userAnswers = await UserAnswer.findOne({ userId }).lean();
-      const flashcardAnswers = {};
-      if (userAnswers?.answers?.length) {
-        for (const a of userAnswers.answers) {
-          if (a.cardId && Array.isArray(a.selectedAnswer)) {
-            flashcardAnswers[a.cardId.toString()] = a.selectedAnswer[0];
-          }
-        }
-      }
-
-      // ── Fetch previous completed scan for progress comparison ─────────────
-      let previousHairScore = null;
-      let previousDandruffSeverity = null;
-      try {
-        const previousScan = await AiResult.findOne({ userId, status: "completed" })
-          .sort({ createdAt: -1 })
-          .select("health dandruff")
-          .lean();
-        if (previousScan) {
-          previousHairScore = previousScan.health?.score ?? null;
-          previousDandruffSeverity = previousScan.dandruff?.severity ?? null;
-        }
-      } catch (prevErr) {
-        console.warn("[Progress] Could not fetch previous scan:", prevErr.message);
-      }
-      // ────────────────────────────────────────────────────────────────────────
-
-      let aiResponse;
-
-try {
-  aiResponse = await axios.post(
-    `${PYTHON_AI_URL}/analyze`,
-    {
-      topImageUrl,
-      frontImageUrl,
-      backImageUrl,
-      userId,
-      username: req.user?.username || userId.toString(),
-      flashcardAnswers,
-      previousHairScore,
-      previousDandruffSeverity,
-    },
-    { timeout: 300000 }
-  );
-} catch (err) {
-
-  if (err.response?.data) {
-    return res.status(err.response.status).json(err.response.data);
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      message: "Unauthorized",
+    });
   }
 
-  return res.status(500).json({
-    success: false,
-    error: {
-      code: "AI_SERVER_UNREACHABLE",
-      message: "AI server unavailable",
-      details: err.message
+  const { topImageUrl, frontImageUrl, backImageUrl } = req.body;
+
+  if (!topImageUrl) {
+    return res.status(400).json({
+      success: false,
+      message: "topImageUrl is required",
+    });
+  }
+
+  let aiRecord;
+
+  try {
+    // ─────────────────────────────
+    // Prevent concurrent analysis
+    // ─────────────────────────────
+
+    const existing = await AiResult.findOne({
+      userId,
+      status: "processing",
+    });
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: "Analysis already running",
+      });
     }
+
+    const username = req.user?.username ?? userId.toString();
+
+    // ─────────────────────────────
+    // Create processing record
+    // ─────────────────────────────
+
+    try {
+
+  aiRecord = await AiResult.create({
+    userId,
+    type: "hair_analysis",
+    status: "processing",
+    images: {
+      top: topImageUrl,
+      front: frontImageUrl || null,
+      back: backImageUrl || null,
+    },
   });
+
+} catch (err) {
+
+  if (err.code === 11000) {
+    return res.status(400).json({
+      success: false,
+      message: "Analysis already running",
+    });
+  }
+
+  throw err;
 }
 
-      const data = aiResponse.data;
-      if (!data || !data.success) throw new Error("Invalid AI response");
+    // ─────────────────────────────
+    // Load flashcard answers
+    // ─────────────────────────────
 
-      let finalResult = await AiResult.findByIdAndUpdate(
-  aiRecord._id,
-  {
-    status: "completed",
-    hairloss: data.hairloss || {},
-    dandruff: data.dandruff || {},
-    health: data.health || {},
-    lifestyle: data.lifestyle || {},
-    simulation: data.simulation || {},
-    rootCause: data.rootCause || {},
-    suggestions: data.suggestions || {},
-    tipsAndRemedies: data.tipsAndRemedies || {},
-    futureRisk: data.futureRisk || {},
-    timeline: data.timeline || {},
-    routine: data.routine || [],
-    adaptiveRoutine: data.adaptiveRoutine || [],
-    progress: data.progress ?? null,   // null = first scan (no previous)
-    assistantContext: data.assistantContext || {},
-    aiResponse: data,
-    error: null,
-  },
-  { new: true },
-);
+    const userAnswers = await UserAnswer.findOne({ userId }).lean();
 
-      const assistantPayload = {
-        userReports: [
-          {
-            hairScore: finalResult.health?.score,
-            lifestyleScore: finalResult.lifestyle?.score,
-            hairSeverity: finalResult.hairloss?.overallSeverity,
-            dandruffSeverity: finalResult.dandruff?.severity,
-          },
-        ],
-        rootCauseResult: finalResult.rootCause,
-        progressResult: finalResult.progress,
-        routineAdherenceData: {},
-        lifestyleScoreTrend: {},
-      };
+    const flashcardAnswers = {};
 
-      let assistantData = {};
-
-      try {
-        const assistantResponse = await axios.post(
-          `${PYTHON_AI_URL}/assistant`,
-          assistantPayload,
-        );
-        assistantData = assistantResponse.data?.assistant || {};
-      } catch (err) {
-        console.error("Assistant error:", err.message);
+    if (userAnswers?.answers?.length) {
+      for (const a of userAnswers.answers) {
+        if (a.cardId && Array.isArray(a.selectedAnswer)) {
+          flashcardAnswers[a.cardId.toString()] = a.selectedAnswer[0];
+        }
       }
-
-      finalResult = await AiResult.findByIdAndUpdate(
-        aiRecord._id,
-        { assistant: assistantData },
-        { new: true },
-      );
-
-      const score = data.health?.score;
-
-      // ── Auto-generate personalised routine for today ──
-      await _autoGenerateRoutine(userId, finalResult);
-
-      // ── In-app notification ───────────────────────────
-      notifService.add(
-        userId.toString(),
-        `🧬 Analysis done! Score: ${score ?? "—"}/100. Your personalised routine is ready — check it now! 💆`,
-        "report",
-      );
-
-      return res.json({ success: true, result: finalResult });
-    } catch (err) {
-      console.error("AI ANALYZE ERROR:", err.message);
-      if (aiRecord?._id) {
-        await AiResult.findByIdAndUpdate(aiRecord._id, {
-          status: "failed",
-          error: err.message,
-        });
-      }
-      return res.status(500).json({ success: false, error: err.message });
     }
-  },
-);
+
+    // ─────────────────────────────
+    // Load previous scan
+    // ─────────────────────────────
+
+    let previousHairScore = null;
+    let previousDandruffSeverity = null;
+
+    const previousScan = await AiResult.findOne({
+      userId,
+      status: "completed",
+    })
+      .sort({ createdAt: -1 })
+      .select("health dandruff")
+      .lean();
+
+    if (previousScan) {
+      previousHairScore = previousScan.health?.score ?? null;
+
+      previousDandruffSeverity = previousScan.dandruff?.severity ?? null;
+    }
+
+    // ─────────────────────────────
+    // Call Python AI
+    // ─────────────────────────────
+
+    let aiResponse;
+
+    try {
+      aiResponse = await aiLimiter(() =>
+        axios.post(
+          `${PYTHON_AI_URL}/analyze`,
+          {
+            topImageUrl,
+            frontImageUrl,
+            backImageUrl,
+            userId,
+            username,
+            flashcardAnswers,
+            previousHairScore,
+            previousDandruffSeverity,
+          },
+          { timeout: 30000 },
+        ),
+      );
+    } catch (err) {
+      console.error("AI server error:", err.message);
+
+      await AiResult.findByIdAndUpdate(aiRecord._id, {
+        status: "failed",
+        error: err.message,
+      });
+
+      return res.status(500).json({
+        success: false,
+        message: "AI server unavailable",
+      });
+    }
+
+    const data = aiResponse.data;
+
+    if (!data || !data.success) {
+      throw new Error("Invalid AI response");
+    }
+
+    // ─────────────────────────────
+    // Save final result
+    // ─────────────────────────────
+
+    const finalResult = await AiResult.findByIdAndUpdate(
+      aiRecord._id,
+      {
+        status: "completed",
+        hairloss: data.hairloss || {},
+        dandruff: data.dandruff || {},
+        health: data.health || {},
+        lifestyle: data.lifestyle || {},
+        simulation: data.simulation || {},
+        rootCause: data.rootCause || {},
+        suggestions: data.suggestions || {},
+        tipsAndRemedies: data.tipsAndRemedies || {},
+        futureRisk: data.futureRisk || {},
+        timeline: data.timeline || {},
+        routine: data.routine || [],
+        adaptiveRoutine: data.adaptiveRoutine || [],
+        progress: data.progress ?? null,
+        assistantContext: data.assistantContext || {},
+        aiResponse: data,
+        error: null,
+      },
+      { new: true, lean: true},
+    );
+
+    // ─────────────────────────────
+    // Generate personalized routine
+    // ─────────────────────────────
+
+    await _autoGenerateRoutine(userId, finalResult);
+
+    // ─────────────────────────────
+    // Notify user
+    // ─────────────────────────────
+
+    const score = data.health?.score;
+
+    notifService.add(
+      userId.toString(),
+      `🧬 Analysis complete! Score: ${score ?? "—"}/100. Check your personalised routine.`,
+      "report",
+    );
+
+    return res.json({
+      success: true,
+      result: finalResult,
+    });
+  } catch (err) {
+    console.error("AI ANALYZE ERROR:", err.message);
+
+    if (aiRecord?._id) {
+      await AiResult.findByIdAndUpdate(aiRecord._id, {
+        status: "failed",
+        error: err.message,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
+});
 
 /* ── HISTORY ─────────────────────────────────────── */
 app.get("/api/ai/history", authenticateUser, async (req, res) => {
@@ -566,12 +654,20 @@ app.get("/api/ai/facts", authenticateUser, async (req, res) => {
     const pyData = pyRes.data?.facts || pyRes.data || {};
     const facts = [];
     const accentColors = [
-      "0xFF4ECDC4", "0xFFFF8C42", "0xFFFF6B9D",
-      "0xFF7B68EE", "0xFFFFD700", "0xFF00E676",
+      "0xFF4ECDC4",
+      "0xFFFF8C42",
+      "0xFFFF6B9D",
+      "0xFF7B68EE",
+      "0xFFFFD700",
+      "0xFF00E676",
     ];
     const cardColors = [
-      "0xFF001A18", "0xFF1A1200", "0xFF1A001A",
-      "0xFF0F0F2A", "0xFF1A1500", "0xFF001A0A",
+      "0xFF001A18",
+      "0xFF1A1200",
+      "0xFF1A001A",
+      "0xFF0F0F2A",
+      "0xFF1A1500",
+      "0xFF001A0A",
     ];
     const emojis = ["🧬", "✂️", "🦴", "💧", "👱", "🚿", "💆", "🥑"];
     let i = 0;
@@ -607,16 +703,20 @@ app.get("/api/ai/facts", authenticateUser, async (req, res) => {
       facts.push(
         {
           title: "Hair Growth Happens in Cycles",
-          description: "Hair grows in three phases: Anagen, Catagen, and Telogen.",
-          fullDetail: "The anagen phase lasts 2-6 years. At any time, 85-90% of your hair is in the growing phase.",
+          description:
+            "Hair grows in three phases: Anagen, Catagen, and Telogen.",
+          fullDetail:
+            "The anagen phase lasts 2-6 years. At any time, 85-90% of your hair is in the growing phase.",
           emoji: "🧬",
           accentColor: "0xFF4ECDC4",
           cardColor: "0xFF001A18",
         },
         {
           title: "50–150 Hairs Lost Daily is Normal",
-          description: "Daily shedding is part of the natural hair growth cycle.",
-          fullDetail: "Each follicle cycles independently. Temporary shedding can increase due to stress or diet.",
+          description:
+            "Daily shedding is part of the natural hair growth cycle.",
+          fullDetail:
+            "Each follicle cycles independently. Temporary shedding can increase due to stress or diet.",
           emoji: "🚿",
           accentColor: "0xFF00E676",
           cardColor: "0xFF001A0A",
@@ -626,7 +726,9 @@ app.get("/api/ai/facts", authenticateUser, async (req, res) => {
     return res.json({ success: true, facts });
   } catch (err) {
     console.error("AI facts error:", err.message);
-    return res.status(500).json({ success: false, error: err.message, facts: [] });
+    return res
+      .status(500)
+      .json({ success: false, error: err.message, facts: [] });
   }
 });
 
@@ -664,15 +766,35 @@ app.patch("/api/notifications/read-all", authenticateUser, (req, res) => {
 /* ── LATEST REPORT ───────────────────────────────── */
 app.get("/api/ai/latest", authenticateUser, async (req, res) => {
   try {
+
     const userId = req.user._id;
-    const result = await AiResult.findOne({
-      userId,
-      status: "completed",
-    }).sort({ createdAt: -1 });
-    return res.json({ success: true, result: result || null });
+
+    const result = await AiResult.findOne({ userId })
+      .sort({ createdAt: -1 });
+
+    if (!result) {
+      return res.json({
+        success: true,
+        status: "none",
+        result: null
+      });
+    }
+
+    return res.json({
+      success: true,
+      status: result.status,
+      result
+    });
+
   } catch (error) {
+
     console.error("Get latest report error:", error);
-    return res.status(500).json({ success: false, message: "Server error" });
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error"
+    });
+
   }
 });
 
