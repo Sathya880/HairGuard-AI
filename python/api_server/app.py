@@ -1,16 +1,6 @@
 """
-Hair AI Backend — Unified Entry Point
-Optimized for Railway / Render (512MB containers)
-
-Architecture
-------------
-Mobile App (Flutter)
-      ↓
-API Gateway (Flask)
-      ↓
-Inference Worker
-      ↓
-Domain Engines
+Hair AI Backend — Production Entry Point
+Optimized for Railway / Render
 """
 
 import logging
@@ -24,10 +14,6 @@ from api_server.routes import register_routes
 from assistant_service.assistant_routes import register_assistant_routes
 
 
-# ─────────────────────────────────────────────
-# LOGGING
-# ─────────────────────────────────────────────
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
@@ -36,85 +22,43 @@ logging.basicConfig(
 logger = logging.getLogger("hair_ai")
 
 
-# ─────────────────────────────────────────────
-# BACKGROUND MODEL WARMUP
-# ─────────────────────────────────────────────
-
-def warm_models():
-    """
-    Warm critical models in background so first request is fast.
-    Safe for low-memory containers.
-    """
-
-    try:
-
-        from inference_worker.model_registry import get
-
-        logger.info("🔥 warming critical models")
-
-        # warm minimal models only
-        get("hairloss_model")
-        get("dandruff_model")
-        get("hair_density_analyzer")
-
-        logger.info("✅ core models warmed")
-
-    except Exception as e:
-        logger.error(f"model warmup failed: {e}")
-
-
-# ─────────────────────────────────────────────
-# BACKGROUND WEIGHT DOWNLOAD
-# ─────────────────────────────────────────────
-
 def ensure_weights():
+    """
+    Download model weights if missing
+    """
 
     try:
 
         from shared.weights_loader import download_weights
 
-        logger.info("⬇ ensuring model weights exist")
+        logger.info("⬇ checking model weights")
 
         download_weights()
 
         logger.info("✅ weights ready")
 
     except Exception as e:
+
         logger.error(f"weight download failed: {e}")
 
-
-# ─────────────────────────────────────────────
-# APP FACTORY
-# ─────────────────────────────────────────────
 
 def create_app():
 
     app = Flask(__name__)
     CORS(app)
 
-    logger.info("🚀 Starting Hair AI Backend")
+    logger.info("🚀 Hair AI backend starting")
 
-    # register API groups
     register_routes(app)
     register_assistant_routes(app)
-
-    # ─────────────────────────────
-    # ROOT
-    # ─────────────────────────────
 
     @app.route("/")
     def root():
 
-        return jsonify(
-            {
-                "service": "hair-ai-backend",
-                "status": "running",
-            }
-        )
-
-    # ─────────────────────────────
-    # HEALTH
-    # ─────────────────────────────
+        return jsonify({
+            "service": "hair-ai-backend",
+            "status": "running"
+        })
 
     @app.route("/health")
     def health():
@@ -123,56 +67,46 @@ def create_app():
 
             from inference_worker.model_registry import status
 
-            return jsonify(
-                {
-                    "status": "ok",
-                    "models": status(),
-                }
-            )
+            return jsonify({
+                "status": "ok",
+                "models": status()
+            })
 
         except Exception as e:
 
-            return jsonify(
-                {
-                    "status": "error",
-                    "error": str(e),
-                }
-            ), 500
+            return jsonify({
+                "status": "error",
+                "error": str(e)
+            }), 500
 
     # ─────────────────────────────
-    # STARTUP HOOK
+    # STARTUP TASKS
     # ─────────────────────────────
 
     @app.before_first_request
-    def startup_tasks():
+    def startup():
 
-        logger.info("⚙ running background initialization")
+        logger.info("⚙ running startup tasks")
 
         # download weights
         threading.Thread(
             target=ensure_weights,
-            daemon=True,
+            daemon=True
         ).start()
 
         # warm models
+        from inference_worker.warmup import warm_models
+
         threading.Thread(
             target=warm_models,
-            daemon=True,
+            daemon=True
         ).start()
 
     return app
 
 
-# ─────────────────────────────────────────────
-# CREATE APP INSTANCE
-# ─────────────────────────────────────────────
-
 app = create_app()
 
-
-# ─────────────────────────────────────────────
-# LOCAL DEVELOPMENT
-# ─────────────────────────────────────────────
 
 if __name__ == "__main__":
 
@@ -183,5 +117,5 @@ if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=port,
-        debug=False,
+        debug=False
     )
