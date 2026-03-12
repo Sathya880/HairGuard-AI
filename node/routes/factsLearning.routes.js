@@ -173,10 +173,50 @@ router.get("/categories", auth, (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /level
 // ─────────────────────────────────────────────────────────────────────────────
-router.get("/level", auth, (req, res) => {
+// ─── Helper: rebuild local intel from a MongoDB UserIntelligence document ────
+function _hydrateIntelFromMongo(userId, mongoDoc) {
+  return {
+    userId,
+    xp:                 mongoDoc.xp                 || 0,
+    factsRead:          mongoDoc.factsRead           || 0,
+    mythsBusted:        mongoDoc.mythsBusted         || 0,
+    totalQuizCorrect:   mongoDoc.totalQuizCorrect    || 0,
+    totalQuizAnswered:  mongoDoc.totalQuizAnswered   || 0,
+    streak: {
+      days:     mongoDoc.streak?.days     || 0,
+      lastDate: mongoDoc.streak?.lastDate || null,
+      longest:  mongoDoc.streak?.longest  || 0,
+    },
+    achievements:       (mongoDoc.achievements       || []).map((a) => ({ ...a })),
+    dailySessions:      (mongoDoc.dailySessions      || []).map((s) => ({ ...s })),
+    categoriesExplored: (mongoDoc.categoriesExplored || []).map((c) => ({ ...c })),
+  };
+}
+
+router.get("/level", auth, async (req, res) => {
   try {
-    const userId     = req.userId;
-    const intel      = getOrCreateIntel(userId);
+    const userId = req.userId;
+    let intel    = getOrCreateIntel(userId);
+
+    // ── PERSISTENCE FIX: if local file lost data (server restart / ephemeral FS),
+    //    recover from MongoDB which is the durable source of truth. ─────────────
+    if ((intel.xp || 0) === 0) {
+      try {
+        const mongoDoc = await UserIntelligence.findOne({
+          userId: new mongoose.Types.ObjectId(userId),
+        }).lean();
+
+        if (mongoDoc && (mongoDoc.xp || 0) > 0) {
+          intel = _hydrateIntelFromMongo(userId, mongoDoc);
+          saveIntel(userId, intel); // repopulate the local cache
+          console.log(`[GET /level] Restored XP=${intel.xp} for user ${userId} from MongoDB`);
+        }
+      } catch (syncErr) {
+        // Never fail the request because of a recovery error
+        console.error("[GET /level] MongoDB recovery failed:", syncErr.message);
+      }
+    }
+
     const today      = todayStr();
     const levelInfo  = computeLevel(intel.xp || 0);
     const streak     = intel.streak?.days || 0;
@@ -360,7 +400,7 @@ router.post("/level", auth, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /read  — mark a single fact read, award XP
 // ─────────────────────────────────────────────────────────────────────────────
-router.post("/read", auth, (req, res) => {
+router.post("/read", auth, async (req, res) => {
   try {
     const { category } = req.body;
     const userId       = req.userId;
@@ -385,6 +425,29 @@ router.post("/read", auth, (req, res) => {
     }
 
     saveIntel(userId, intel);
+
+    // ── PERSISTENCE FIX: sync XP to MongoDB on every fact read so data
+    //    survives server restarts / ephemeral filesystems. ──────────────────
+    try {
+      const levelInfo = computeLevel(intel.xp);
+      await UserIntelligence.findOneAndUpdate(
+        { userId: new mongoose.Types.ObjectId(userId) },
+        {
+          $set: {
+            xp:                 intel.xp,
+            factsRead:          intel.factsRead          || 0,
+            level:              levelInfo.currentLevel,
+            categoriesExplored: intel.categoriesExplored || [],
+            "streak.days":      intel.streak?.days       || 0,
+            "streak.lastDate":  intel.streak?.lastDate   || null,
+            "streak.longest":   intel.streak?.longest    || 0,
+          },
+        },
+        { upsert: true, new: false }
+      );
+    } catch (syncErr) {
+      console.error("[POST /read] MongoDB sync error:", syncErr.message);
+    }
 
     const levelInfo = computeLevel(intel.xp);
     res.json({

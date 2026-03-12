@@ -791,6 +791,7 @@ app.get("/api/ai/latest", authenticateUser, async (req, res) => {
 
     let result = await AiResult.findOne({ userId })
       .sort({ createdAt: -1 })
+      .select('+aiResponse')   // ← FIX: aiResponse has select:false; include it so futureRisk fallback works in Flutter
       .lean();
 
     if (!result) {
