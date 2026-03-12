@@ -514,7 +514,7 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
     }
 
     // ── Normalize Flask snake_case → Mongoose camelCase ──────────
-    function normalizeHairloss(hl) {
+    function normalizeHairloss(hl, healthBreakdown) {
       if (!hl) return {};
       const views = hl.views || {};
       const normalizeView = (v) => {
@@ -525,9 +525,28 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
           weight:   v.weight   ?? null,
         };
       };
+
+      // Resolve combinedDamage: Python now sends it directly.
+      // Fallback: pull from health.breakdown.hairloss.combined_damage
+      let combinedDamage =
+        hl.combinedDamage  ??
+        hl.combined_damage ??
+        healthBreakdown?.hairloss?.combined_damage ??
+        null;
+
+      // Last resort: compute weighted average from per-view damages
+      if (combinedDamage === null || combinedDamage === undefined) {
+        const top   = views.top?.damage   ?? null;
+        const front = views.front?.damage ?? null;
+        const back  = views.back?.damage  ?? null;
+        if (top !== null && front !== null && back !== null) {
+          combinedDamage = Math.round(top * 0.5 + front * 0.3 + back * 0.2);
+        }
+      }
+
       return {
         overallSeverity: hl.overallSeverity ?? hl.overall_severity ?? "unknown",
-        combinedDamage:  hl.combinedDamage  ?? hl.combined_damage  ?? null,
+        combinedDamage,
         overlayImageKey: hl.overlayImageKey ?? hl.overlay_image_key ?? null,
         views: {
           top:   normalizeView(views.top),
@@ -541,49 +560,23 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
     function normalizeRootCause(rc) {
       if (!rc || Object.keys(rc).length === 0) return {};
       return {
-        primary:   rc.primary   ?? rc.primaryCause ?? null,
-        secondary: rc.secondary ?? rc.secondaryCause ?? null,
-        details:   rc.details   ?? rc.nodes ?? rc,
+        // Short keys (legacy Flutter reads rc.primary / rc.secondary)
+        primary:            rc.primary            ?? rc.primary_cause    ?? rc.primaryCause   ?? null,
+        secondary:          rc.secondary          ?? rc.secondary_cause  ?? rc.secondaryCause ?? null,
+        // Full Bayesian fields (BayesianRootCause.fromJson in Flutter)
+        primary_cause:      rc.primary_cause      ?? rc.primary          ?? null,
+        secondary_cause:    rc.secondary_cause    ?? rc.secondary        ?? null,
+        confidence_percent: rc.confidence_percent ?? rc.confidence       ?? 0,
+        causes:             rc.causes             ?? [],
+        impact_breakdown:   rc.impact_breakdown   ?? rc.details          ?? {},
+        details:            rc.impact_breakdown   ?? rc.details          ?? {},
+        data_strength:      rc.data_strength      ?? "Moderate",
+        network_summary:    rc.network_summary    ?? "",
       };
     }
 
-    function normalizeProgress(p) {
-      if (!p) return null;
-      return {
-        previousScore:  p.previousScore  ?? p.previous_score  ?? p.previous_hair_score  ?? null,
-        currentScore:   p.currentScore   ?? p.current_score   ?? p.current_hair_score   ?? null,
-        scoreChange:    p.scoreChange    ?? p.score_change     ?? null,
-        hairTrend:      p.hairTrend      ?? p.hair_trend       ?? "First Scan",
-        dandruffTrend:  p.dandruffTrend  ?? p.dandruff_trend   ?? "First Scan",
-      };
-    }
-
-    // Derive combinedDamage from breakdown when Python sends null
-    function resolvedCombinedDamage(hl, breakdown) {
-      if (hl?.combinedDamage != null) return hl.combinedDamage;
-      const hlBreak = breakdown?.hairloss;
-      if (hlBreak?.combined_damage != null) return hlBreak.combined_damage;
-      // Weighted fallback from per-view damage
-      const views = hl?.views || {};
-      const slots = [
-        { v: views.top,   w: 0.5 },
-        { v: views.front, w: 0.3 },
-        { v: views.back,  w: 0.2 },
-      ];
-      let num = 0, den = 0;
-      for (const { v, w } of slots) {
-        if (v?.damage != null) { num += v.damage * w; den += w; }
-      }
-      return den > 0 ? Math.round((num / den) * 10) / 10 : null;
-    }
-
-    const normalizedHairloss  = normalizeHairloss(data.hairloss);
+    const normalizedHairloss  = normalizeHairloss(data.hairloss, data.health?.breakdown);
     const normalizedRootCause = normalizeRootCause(data.rootCause);
-
-    // Patch combinedDamage if it came back null from Python
-    if (normalizedHairloss.combinedDamage == null) {
-      normalizedHairloss.combinedDamage = resolvedCombinedDamage(data.hairloss, data.health?.breakdown);
-    }
 
     let finalResult = await AiResult.findByIdAndUpdate(
       aiRecord._id,
@@ -601,7 +594,7 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
         timeline: data.timeline || {},
         routine: data.routine || [],
         adaptiveRoutine: data.adaptiveRoutine || [],
-        progress: normalizeProgress(data.progress),
+        progress: data.progress ?? null,
         assistantContext: data.assistantContext || {},
         aiResponse: data,
         error: null,
