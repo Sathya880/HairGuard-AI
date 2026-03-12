@@ -547,8 +547,43 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
       };
     }
 
+    function normalizeProgress(p) {
+      if (!p) return null;
+      return {
+        previousScore:  p.previousScore  ?? p.previous_score  ?? p.previous_hair_score  ?? null,
+        currentScore:   p.currentScore   ?? p.current_score   ?? p.current_hair_score   ?? null,
+        scoreChange:    p.scoreChange    ?? p.score_change     ?? null,
+        hairTrend:      p.hairTrend      ?? p.hair_trend       ?? "First Scan",
+        dandruffTrend:  p.dandruffTrend  ?? p.dandruff_trend   ?? "First Scan",
+      };
+    }
+
+    // Derive combinedDamage from breakdown when Python sends null
+    function resolvedCombinedDamage(hl, breakdown) {
+      if (hl?.combinedDamage != null) return hl.combinedDamage;
+      const hlBreak = breakdown?.hairloss;
+      if (hlBreak?.combined_damage != null) return hlBreak.combined_damage;
+      // Weighted fallback from per-view damage
+      const views = hl?.views || {};
+      const slots = [
+        { v: views.top,   w: 0.5 },
+        { v: views.front, w: 0.3 },
+        { v: views.back,  w: 0.2 },
+      ];
+      let num = 0, den = 0;
+      for (const { v, w } of slots) {
+        if (v?.damage != null) { num += v.damage * w; den += w; }
+      }
+      return den > 0 ? Math.round((num / den) * 10) / 10 : null;
+    }
+
     const normalizedHairloss  = normalizeHairloss(data.hairloss);
     const normalizedRootCause = normalizeRootCause(data.rootCause);
+
+    // Patch combinedDamage if it came back null from Python
+    if (normalizedHairloss.combinedDamage == null) {
+      normalizedHairloss.combinedDamage = resolvedCombinedDamage(data.hairloss, data.health?.breakdown);
+    }
 
     let finalResult = await AiResult.findByIdAndUpdate(
       aiRecord._id,
@@ -566,7 +601,7 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
         timeline: data.timeline || {},
         routine: data.routine || [],
         adaptiveRoutine: data.adaptiveRoutine || [],
-        progress: data.progress ?? null,
+        progress: normalizeProgress(data.progress),
         assistantContext: data.assistantContext || {},
         aiResponse: data,
         error: null,
