@@ -498,15 +498,52 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
       throw new Error("Invalid AI response");
     }
 
+    // ── Normalize Flask snake_case → Mongoose camelCase ──────────
+    function normalizeHairloss(hl) {
+      if (!hl) return {};
+      const views = hl.views || {};
+      const normalizeView = (v) => {
+        if (!v) return {};
+        return {
+          severity: v.severity ?? "unknown",
+          damage:   v.damage   ?? null,
+          weight:   v.weight   ?? null,
+        };
+      };
+      return {
+        overallSeverity: hl.overallSeverity ?? hl.overall_severity ?? "unknown",
+        combinedDamage:  hl.combinedDamage  ?? hl.combined_damage  ?? null,
+        overlayImageKey: hl.overlayImageKey ?? hl.overlay_image_key ?? null,
+        views: {
+          top:   normalizeView(views.top),
+          front: normalizeView(views.front),
+          back:  normalizeView(views.back),
+        },
+        summary: hl.summary ?? null,
+      };
+    }
+
+    function normalizeRootCause(rc) {
+      if (!rc || Object.keys(rc).length === 0) return {};
+      return {
+        primary:   rc.primary   ?? rc.primaryCause ?? null,
+        secondary: rc.secondary ?? rc.secondaryCause ?? null,
+        details:   rc.details   ?? rc.nodes ?? rc,
+      };
+    }
+
+    const normalizedHairloss  = normalizeHairloss(data.hairloss);
+    const normalizedRootCause = normalizeRootCause(data.rootCause);
+
     let finalResult = await AiResult.findByIdAndUpdate(
       aiRecord._id,
       {
         status: "completed",
-        hairloss: data.hairloss || {},
+        hairloss: normalizedHairloss,
         dandruff: data.dandruff || {},
         health: data.health || {},
         lifestyle: data.lifestyle || {},
-        rootCause: data.rootCause || {},
+        rootCause: normalizedRootCause,
         simulation: data.simulation || {},
         suggestions: data.suggestions || {},
         tipsAndRemedies: data.tipsAndRemedies || {},
