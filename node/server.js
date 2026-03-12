@@ -444,7 +444,7 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
         backImageKey,
         userId,
       },
-      { timeout: 30000 }
+      { timeout: 30000 },
     );
 
     const data = aiResponse.data;
@@ -457,10 +457,24 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
       aiRecord._id,
       {
         status: "completed",
-        ...data,
+        hairloss: data.hairloss || {},
+        dandruff: data.dandruff || {},
+        health: data.health || {},
+        lifestyle: data.lifestyle || {},
+        rootCause: data.rootCause || {},
+        simulation: data.simulation || {},
+        suggestions: data.suggestions || {},
+        tipsAndRemedies: data.tipsAndRemedies || {},
+        futureRisk: data.futureRisk || {},
+        timeline: data.timeline || {},
+        routine: data.routine || [],
+        adaptiveRoutine: data.adaptiveRoutine || [],
+        progress: data.progress ?? null,
+        assistantContext: data.assistantContext || {},
+        aiResponse: data,
         error: null,
       },
-      { new: true, lean: true }
+      { new: true, lean: true },
     );
 
     return res.json({
