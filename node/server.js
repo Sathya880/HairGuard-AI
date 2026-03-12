@@ -9,7 +9,7 @@ const axios = require("axios");
 
 const { v4: uuidv4 } = require("uuid");
 require("dotenv").config();
-const MongoStore = require("connect-mongo");
+
 const pLimit = require("p-limit");
 const aiLimiter = pLimit(2);
 
@@ -45,22 +45,15 @@ app.use(
 );
 app.use(helmet());
 app.use(express.json());
+
 app.use(
   session({
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-
-    store: MongoStore.create({
-      mongoUrl: process.env.MONGO_URI,
-      collectionName: "sessions"
-    }),
-
-    cookie: {
-      maxAge: 1000 * 60 * 60 * 24 * 7
-    }
-  })
+  }),
 );
+
 
 // ─────────────────────────────────────────────
 // S3 PRESIGNED UPLOAD URL (SECURE)
@@ -441,33 +434,18 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
       });
     }
 
-    // ─────────────────────────────
-    // Extract S3 key safely
-    // ─────────────────────────────
     const extractS3Key = (url) => {
       try {
-        if (!url) return null;
-        const parsed = new URL(url);
-        return parsed.pathname.replace(/^\/+/, "");
+        return new URL(url).pathname.substring(1);
       } catch {
         return null;
       }
     };
 
     const topImageKey = extractS3Key(topImageUrl);
-    const frontImageKey = extractS3Key(frontImageUrl);
-    const backImageKey = extractS3Key(backImageUrl);
+    const frontImageKey = frontImageUrl ? extractS3Key(frontImageUrl) : null;
+    const backImageKey = backImageUrl ? extractS3Key(backImageUrl) : null;
 
-    if (!topImageKey) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid top image URL",
-      });
-    }
-
-    // ─────────────────────────────
-    // Prevent duplicate processing
-    // ─────────────────────────────
     const existing = await AiResult.findOne({
       userId,
       status: "processing",
@@ -488,13 +466,10 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
 
       await AiResult.updateOne(
         { _id: existing._id },
-        { $set: { status: "failed", error: "Stale job reset" } }
+        { $set: { status: "failed", error: "Stale job reset" } },
       );
     }
 
-    // ─────────────────────────────
-    // Create processing record
-    // ─────────────────────────────
     aiRecord = await AiResult.create({
       userId,
       type: "hair_analysis",
@@ -506,28 +481,22 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
       },
     });
 
-    // ─────────────────────────────
-    // Load flashcard answers
-    // ─────────────────────────────
+    // Load saved flashcard answers so Python can compute lifestyle risk
     let flashcardAnswers = {};
-
     try {
-      const doc = await UserAnswer.findOne({ userId }).lean();
-
-      if (doc?.answers?.length) {
+      const userAnswerDoc = await UserAnswer.findOne({ userId }).lean();
+      if (userAnswerDoc?.answers?.length) {
+        // Convert array [{cardId, question, selectedAnswer}] → { cardId: selectedAnswer[] }
         flashcardAnswers = Object.fromEntries(
-          doc.answers.map((a) => [a.cardId, a.selectedAnswer])
+          userAnswerDoc.answers.map((a) => [a.cardId, a.selectedAnswer])
         );
       }
-    } catch (err) {
-      console.warn("Flashcard load error:", err.message);
+    } catch (ansErr) {
+      logger?.warn?.("Could not load flashcard answers:", ansErr.message);
     }
 
-    // ─────────────────────────────
-    // Call Python AI
-    // ─────────────────────────────
-    const aiResponse = await aiLimiter(() =>
-      axios.post(
+    const aiResponse = await aiLimiter(async () => {
+      return axios.post(
         `${PYTHON_AI_URL}/analyze`,
         {
           topImageKey,
@@ -536,117 +505,81 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
           userId,
           flashcardAnswers,
         },
-        {
-          timeout: 120000,
-        }
-      )
-    );
+        { timeout: 120000 },
+      );
+    });
 
-    const data = aiResponse?.data;
+    const data = aiResponse.data;
 
     if (!data || !data.success) {
       throw new Error("Invalid AI response");
     }
 
-    // ─────────────────────────────
-    // Normalize hairloss
-    // ─────────────────────────────
-    const normalizeHairloss = (hl, healthBreakdown) => {
+    // ── Normalize Flask snake_case → Mongoose camelCase ──────────
+    function normalizeHairloss(hl, healthBreakdown) {
       if (!hl) return {};
-
       const views = hl.views || {};
+      const normalizeView = (v) => {
+        if (!v) return {};
+        return {
+          severity: v.severity ?? "unknown",
+          damage:   v.damage   ?? null,
+          weight:   v.weight   ?? null,
+        };
+      };
 
-      const normalizeView = (v) => ({
-        severity: v?.severity ?? "unknown",
-        damage: v?.damage ?? null,
-        weight: v?.weight ?? null,
-      });
-
+      // Resolve combinedDamage: Python now sends it directly.
+      // Fallback: pull from health.breakdown.hairloss.combined_damage
       let combinedDamage =
-        hl.combinedDamage ??
+        hl.combinedDamage  ??
         hl.combined_damage ??
         healthBreakdown?.hairloss?.combined_damage ??
         null;
 
-      if (combinedDamage == null) {
-        const top = views.top?.damage ?? null;
+      // Last resort: compute weighted average from per-view damages
+      if (combinedDamage === null || combinedDamage === undefined) {
+        const top   = views.top?.damage   ?? null;
         const front = views.front?.damage ?? null;
-        const back = views.back?.damage ?? null;
-
+        const back  = views.back?.damage  ?? null;
         if (top !== null && front !== null && back !== null) {
-          combinedDamage = Math.round(
-            top * 0.5 + front * 0.3 + back * 0.2
-          );
+          combinedDamage = Math.round(top * 0.5 + front * 0.3 + back * 0.2);
         }
       }
 
       return {
-        overallSeverity:
-          hl.overallSeverity ?? hl.overall_severity ?? "unknown",
+        overallSeverity: hl.overallSeverity ?? hl.overall_severity ?? "unknown",
         combinedDamage,
-        overlayImageKey:
-          hl.overlayImageKey ?? hl.overlay_image_key ?? null,
+        overlayImageKey: hl.overlayImageKey ?? hl.overlay_image_key ?? null,
         views: {
-          top: normalizeView(views.top),
+          top:   normalizeView(views.top),
           front: normalizeView(views.front),
-          back: normalizeView(views.back),
+          back:  normalizeView(views.back),
         },
         summary: hl.summary ?? null,
       };
-    };
+    }
 
-    // ─────────────────────────────
-    // Normalize root cause
-    // ─────────────────────────────
-    const normalizeRootCause = (rc) => {
-      if (!rc) return {};
-
+    function normalizeRootCause(rc) {
+      if (!rc || Object.keys(rc).length === 0) return {};
       return {
-        primary:
-          rc.primary ??
-          rc.primary_cause ??
-          rc.primaryCause ??
-          null,
-
-        secondary:
-          rc.secondary ??
-          rc.secondary_cause ??
-          rc.secondaryCause ??
-          null,
-
-        primary_cause:
-          rc.primary_cause ??
-          rc.primary ??
-          null,
-
-        secondary_cause:
-          rc.secondary_cause ??
-          rc.secondary ??
-          null,
-
-        confidence_percent:
-          rc.confidence_percent ??
-          rc.confidence ??
-          0,
-
-        causes: rc.causes ?? [],
-        impact_breakdown: rc.impact_breakdown ?? rc.details ?? {},
-        details: rc.impact_breakdown ?? rc.details ?? {},
-        data_strength: rc.data_strength ?? "Moderate",
-        network_summary: rc.network_summary ?? "",
+        // Short keys (legacy Flutter reads rc.primary / rc.secondary)
+        primary:            rc.primary            ?? rc.primary_cause    ?? rc.primaryCause   ?? null,
+        secondary:          rc.secondary          ?? rc.secondary_cause  ?? rc.secondaryCause ?? null,
+        // Full Bayesian fields (BayesianRootCause.fromJson in Flutter)
+        primary_cause:      rc.primary_cause      ?? rc.primary          ?? null,
+        secondary_cause:    rc.secondary_cause    ?? rc.secondary        ?? null,
+        confidence_percent: rc.confidence_percent ?? rc.confidence       ?? 0,
+        causes:             rc.causes             ?? [],
+        impact_breakdown:   rc.impact_breakdown   ?? rc.details          ?? {},
+        details:            rc.impact_breakdown   ?? rc.details          ?? {},
+        data_strength:      rc.data_strength      ?? "Moderate",
+        network_summary:    rc.network_summary    ?? "",
       };
-    };
+    }
 
-    const normalizedHairloss = normalizeHairloss(
-      data.hairloss,
-      data.health?.breakdown
-    );
-
+    const normalizedHairloss  = normalizeHairloss(data.hairloss, data.health?.breakdown);
     const normalizedRootCause = normalizeRootCause(data.rootCause);
 
-    // ─────────────────────────────
-    // Save result
-    // ─────────────────────────────
     let finalResult = await AiResult.findByIdAndUpdate(
       aiRecord._id,
       {
@@ -668,37 +601,30 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
         aiResponse: data,
         error: null,
       },
-      { new: true, lean: true }
+      { new: true, lean: true },
     );
 
     finalResult = attachImageUrls(finalResult);
-
+    // auto-generate personalised routine
     await _autoGenerateRoutine(userId, finalResult);
 
     return res.json({
       success: true,
       result: finalResult,
     });
-
   } catch (err) {
-
-    console.error("AI ANALYZE ERROR:", err?.response?.data || err.message);
+    console.error("AI ANALYZE ERROR:", err);
 
     if (aiRecord?._id) {
       await AiResult.updateOne(
         { _id: aiRecord._id },
-        {
-          $set: {
-            status: "failed",
-            error: err?.response?.data?.error || err.message,
-          },
-        }
+        { $set: { status: "failed", error: err.message } },
       );
     }
 
     return res.status(500).json({
       success: false,
-      error: err?.response?.data?.error || err.message,
+      error: err.message,
     });
   }
 });
