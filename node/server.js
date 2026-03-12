@@ -9,7 +9,7 @@ const axios = require("axios");
 
 const { v4: uuidv4 } = require("uuid");
 require("dotenv").config();
-
+const MongoStore = require("connect-mongo");
 const pLimit = require("p-limit");
 const aiLimiter = pLimit(2);
 
@@ -50,7 +50,10 @@ app.use(
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-  }),
+    store: MongoStore.create({
+      mongoUrl: process.env.MONGO_URI,
+    }),
+  })
 );
 
 // ─────────────────────────────────────────────
