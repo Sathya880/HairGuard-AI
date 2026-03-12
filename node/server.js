@@ -377,41 +377,40 @@ app.post(
 // ═══════════════════════════════════════════════════
 
 app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
-  const userId = req.user?._id;
-
-  if (!userId) {
-    return res.status(401).json({
-      success: false,
-      message: "Unauthorized",
-    });
-  }
-  const { topImageUrl, frontImageUrl, backImageUrl } = req.body;
-
-  if (!topImageUrl) {
-    return res.status(400).json({
-      success: false,
-      message: "topImageUrl is required",
-    });
-  }
-
-  const topImageKey = extractS3Key(topImageUrl);
-  const frontImageKey = frontImageUrl ? extractS3Key(frontImageUrl) : null;
-  const backImageKey = backImageUrl ? extractS3Key(backImageUrl) : null;
-
-  if (!topImageUrl) {
-    return res.status(400).json({
-      success: false,
-      message: "topImageUrl is required",
-    });
-  }
-
-  let aiRecord;
-
   try {
-    // ─────────────────────────────
-    // Prevent concurrent analysis
-    // ─────────────────────────────
+    const userId = req.user?._id;
 
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    // ✅ READ BODY FIRST
+    const { topImageUrl, frontImageUrl, backImageUrl } = req.body;
+
+    if (!topImageUrl) {
+      return res.status(400).json({
+        success: false,
+        message: "topImageUrl is required",
+      });
+    }
+
+    // ✅ convert URL → S3 key
+    const extractS3Key = (url) => {
+      if (!url) return null;
+      const parts = url.split(".amazonaws.com/");
+      return parts.length > 1 ? parts[1] : null;
+    };
+
+    const topImageKey = extractS3Key(topImageUrl);
+    const frontImageKey = frontImageUrl ? extractS3Key(frontImageUrl) : null;
+    const backImageKey = backImageUrl ? extractS3Key(backImageUrl) : null;
+
+    let aiRecord;
+
+    // Prevent concurrent scan
     const existing = await AiResult.findOne({
       userId,
       status: "processing",
@@ -424,104 +423,29 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
       });
     }
 
-    // ─────────────────────────────
-    // Create processing record
-    // ─────────────────────────────
-
-    try {
-      aiRecord = await AiResult.create({
-        userId,
-        type: "hair_analysis",
-        status: "processing",
-        images: {
-          top: topImageKey,
-          front: frontImageKey,
-          back: backImageKey,
-        },
-      });
-    } catch (err) {
-      if (err.code === 11000) {
-        return res.status(400).json({
-          success: false,
-          message: "Analysis already running",
-        });
-      }
-
-      throw err;
-    }
-
-    // ─────────────────────────────
-    // Load flashcard answers
-    // ─────────────────────────────
-
-    const userAnswers = await UserAnswer.findOne({ userId }).lean();
-
-    const flashcardAnswers = {};
-
-    if (userAnswers?.answers?.length) {
-      for (const a of userAnswers.answers) {
-        if (a.cardId && Array.isArray(a.selectedAnswer)) {
-          flashcardAnswers[a.cardId.toString()] = a.selectedAnswer[0];
-        }
-      }
-    }
-
-    // ─────────────────────────────
-    // Load previous scan
-    // ─────────────────────────────
-
-    let previousHairScore = null;
-    let previousDandruffSeverity = null;
-
-    const previousScan = await AiResult.findOne({
+    // Create record
+    aiRecord = await AiResult.create({
       userId,
-      status: "completed",
-    })
-      .sort({ createdAt: -1 })
-      .select("health dandruff")
-      .lean();
+      type: "hair_analysis",
+      status: "processing",
+      images: {
+        top: topImageKey,
+        front: frontImageKey,
+        back: backImageKey,
+      },
+    });
 
-    if (previousScan) {
-      previousHairScore = previousScan.health?.score ?? null;
-
-      previousDandruffSeverity = previousScan.dandruff?.severity ?? null;
-    }
-
-    // ─────────────────────────────
     // Call Python AI
-    // ─────────────────────────────
-
-    let aiResponse;
-
-    try {
-      aiResponse = await aiLimiter(() =>
-        axios.post(
-          `${PYTHON_AI_URL}/analyze`,
-          {
-            topImageKey,
-            frontImageKey,
-            backImageKey,
-            userId,
-            flashcardAnswers,
-            previousHairScore,
-            previousDandruffSeverity,
-          },
-          { timeout: 30000 },
-        ),
-      );
-    } catch (err) {
-      console.error("AI server error:", err.message);
-
-      await AiResult.findByIdAndUpdate(aiRecord._id, {
-        status: "failed",
-        error: err.message,
-      });
-
-      return res.status(500).json({
-        success: false,
-        message: "AI server unavailable",
-      });
-    }
+    const aiResponse = await axios.post(
+      `${PYTHON_AI_URL}/analyze`,
+      {
+        topImageKey,
+        frontImageKey,
+        backImageKey,
+        userId,
+      },
+      { timeout: 30000 }
+    );
 
     const data = aiResponse.data;
 
@@ -529,50 +453,14 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
       throw new Error("Invalid AI response");
     }
 
-    // ─────────────────────────────
-    // Save final result
-    // ─────────────────────────────
-
     const finalResult = await AiResult.findByIdAndUpdate(
       aiRecord._id,
       {
         status: "completed",
-        hairloss: data.hairloss || {},
-        dandruff: data.dandruff || {},
-        health: data.health || {},
-        lifestyle: data.lifestyle || {},
-        simulation: data.simulation || {},
-        rootCause: data.rootCause || {},
-        suggestions: data.suggestions || {},
-        tipsAndRemedies: data.tipsAndRemedies || {},
-        futureRisk: data.futureRisk || {},
-        timeline: data.timeline || {},
-        routine: data.routine || [],
-        adaptiveRoutine: data.adaptiveRoutine || [],
-        progress: data.progress ?? null,
-        assistantContext: data.assistantContext || {},
-        aiResponse: data,
+        ...data,
         error: null,
       },
-      { new: true, lean: true },
-    );
-
-    // ─────────────────────────────
-    // Generate personalized routine
-    // ─────────────────────────────
-
-    await _autoGenerateRoutine(userId, finalResult);
-
-    // ─────────────────────────────
-    // Notify user
-    // ─────────────────────────────
-
-    const score = data.health?.score;
-
-    notifService.add(
-      userId.toString(),
-      `🧬 Analysis complete! Score: ${score ?? "—"}/100. Check your personalised routine.`,
-      "report",
+      { new: true, lean: true }
     );
 
     return res.json({
@@ -580,14 +468,7 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
       result: finalResult,
     });
   } catch (err) {
-    console.error("AI ANALYZE ERROR:", err.message);
-
-    if (aiRecord?._id) {
-      await AiResult.findByIdAndUpdate(aiRecord._id, {
-        status: "failed",
-        error: err.message,
-      });
-    }
+    console.error("AI ANALYZE ERROR:", err);
 
     return res.status(500).json({
       success: false,
@@ -595,7 +476,6 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
     });
   }
 });
-
 /* ── HISTORY ─────────────────────────────────────── */
 app.get("/api/ai/history", authenticateUser, async (req, res) => {
   try {
