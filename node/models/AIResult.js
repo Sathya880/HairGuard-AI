@@ -39,6 +39,42 @@ const ViewSeveritySchema = new mongoose.Schema(
 );
 
 /* =====================================================
+   PROGRESS SCHEMA
+===================================================== */
+
+const ProgressSchema = new mongoose.Schema(
+  {
+    previousScore: {
+      type: Number,
+      default: null,
+    },
+
+    currentScore: {
+      type: Number,
+      default: null,
+    },
+
+    scoreChange: {
+      type: Number,
+      default: null,
+    },
+
+    hairTrend: {
+      type: String,
+      enum: ["Improved", "Worsened", "Stable", "First Scan"],
+      default: "First Scan",
+    },
+
+    dandruffTrend: {
+      type: String,
+      enum: ["Improved", "Worsened", "Stable", "First Scan"],
+      default: "First Scan",
+    },
+  },
+  { _id: false }
+);
+
+/* =====================================================
    MAIN AI RESULT SCHEMA
 ===================================================== */
 
@@ -66,7 +102,7 @@ const AIResultSchema = new mongoose.Schema(
       index: true,
     },
 
-    /* INPUT IMAGES (S3 KEYS) */
+    /* INPUT IMAGES */
 
     images: {
       top: {
@@ -116,20 +152,9 @@ const AIResultSchema = new mongoose.Schema(
       },
 
       views: {
-        top: {
-          type: ViewSeveritySchema,
-          default: () => ({}),
-        },
-
-        front: {
-          type: ViewSeveritySchema,
-          default: () => ({}),
-        },
-
-        back: {
-          type: ViewSeveritySchema,
-          default: () => ({}),
-        },
+        top: { type: ViewSeveritySchema, default: () => ({}) },
+        front: { type: ViewSeveritySchema, default: () => ({}) },
+        back: { type: ViewSeveritySchema, default: () => ({}) },
       },
 
       summary: {
@@ -189,20 +214,9 @@ const AIResultSchema = new mongoose.Schema(
     /* ROOT CAUSE */
 
     rootCause: {
-      primary: {
-        type: String,
-        default: null,
-      },
-
-      secondary: {
-        type: String,
-        default: null,
-      },
-
-      details: {
-        type: mongoose.Schema.Types.Mixed,
-        default: {},
-      },
+      primary: { type: String, default: null },
+      secondary: { type: String, default: null },
+      details: { type: mongoose.Schema.Types.Mixed, default: {} },
     },
 
     /* RECOMMENDATIONS */
@@ -230,21 +244,8 @@ const AIResultSchema = new mongoose.Schema(
     /* PROGRESS */
 
     progress: {
-      previousScore: { type: Number, default: null },
-      currentScore: { type: Number, default: null },
-      scoreChange: { type: Number, default: null },
-
-      hairTrend: {
-        type: String,
-        enum: ["Improved", "Worsened", "Stable", "First Scan"],
-        default: null,
-      },
-
-      dandruffTrend: {
-        type: String,
-        enum: ["Improved", "Worsened", "Stable", "First Scan"],
-        default: null,
-      },
+      type: ProgressSchema,
+      default: () => ({}),
     },
 
     /* SIMULATION */
@@ -267,23 +268,26 @@ const AIResultSchema = new mongoose.Schema(
     },
 
     assistant: {
-      state: String,
-      message: String,
-      tone: String,
-      suggestions: mongoose.Schema.Types.Mixed,
+      state: { type: String, default: null },
+      message: { type: String, default: null },
+      tone: { type: String, default: null },
+      suggestions: { type: mongoose.Schema.Types.Mixed, default: {} },
     },
 
     /* DEBUG */
 
-    engineVersion: String,
-    modelVersion: String,
+    engineVersion: { type: String, default: null },
+    modelVersion: { type: String, default: null },
 
     aiResponse: {
       type: mongoose.Schema.Types.Mixed,
       select: false,
     },
 
-    error: String,
+    error: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -295,15 +299,9 @@ const AIResultSchema = new mongoose.Schema(
    INDEXES
 ===================================================== */
 
-/* Fast user history */
-
 AIResultSchema.index({ userId: 1, createdAt: -1 });
 
-/* Find active analysis */
-
 AIResultSchema.index({ userId: 1, status: 1 });
-
-/* Prevent multiple scans running */
 
 AIResultSchema.index(
   { userId: 1 },
@@ -312,8 +310,6 @@ AIResultSchema.index(
     partialFilterExpression: { status: "processing" },
   }
 );
-
-/* Auto-delete failed scans after 24h */
 
 AIResultSchema.index(
   { createdAt: 1 },
