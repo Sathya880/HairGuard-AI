@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 /* =====================================================
-   🔹 VIEW SEVERITY SCHEMA
+   VIEW SEVERITY SCHEMA
 ===================================================== */
 
 const ViewSeveritySchema = new mongoose.Schema(
@@ -20,26 +20,32 @@ const ViewSeveritySchema = new mongoose.Schema(
       ],
       default: "unknown",
     },
+
     damage: {
       type: Number,
       min: 0,
       max: 100,
+      default: null,
     },
+
     weight: {
       type: Number,
       min: 0,
       max: 1,
+      default: null,
     },
   },
-  { _id: false },
+  { _id: false }
 );
 
 /* =====================================================
-   🔹 MAIN AI RESULT SCHEMA
+   MAIN AI RESULT SCHEMA
 ===================================================== */
 
 const AIResultSchema = new mongoose.Schema(
   {
+    /* USER */
+
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -61,14 +67,26 @@ const AIResultSchema = new mongoose.Schema(
       index: true,
     },
 
-    /* IMAGES */
+    /* INPUT IMAGES (S3 KEYS) */
 
     images: {
-      top: { type: String, required: true },
-      front: String,
-      back: String,
+      top: {
+        type: String,
+        required: true,
+      },
+
+      front: {
+        type: String,
+        default: null,
+      },
+
+      back: {
+        type: String,
+        default: null,
+      },
     },
-    /* HAIRLOSS */
+
+    /* HAIR LOSS ANALYSIS */
 
     hairloss: {
       overallSeverity: {
@@ -86,15 +104,36 @@ const AIResultSchema = new mongoose.Schema(
         default: "unknown",
       },
 
-      combinedDamage: { type: Number, min: 0, max: 100 },
+      combinedDamage: {
+        type: Number,
+        min: 0,
+        max: 100,
+      },
 
-      overlayImageUrl: String, // only top overlay
+      /* S3 KEY of overlay */
+
+      overlayImageKey: {
+        type: String,
+        default: null,
+      },
 
       views: {
-        top: { type: ViewSeveritySchema, default: {} },
-        front: { type: ViewSeveritySchema, default: {} },
-        back: { type: ViewSeveritySchema, default: {} },
+        top: {
+          type: ViewSeveritySchema,
+          default: {},
+        },
+
+        front: {
+          type: ViewSeveritySchema,
+          default: {},
+        },
+
+        back: {
+          type: ViewSeveritySchema,
+          default: {},
+        },
       },
+
       summary: String,
     },
 
@@ -107,19 +146,29 @@ const AIResultSchema = new mongoose.Schema(
         default: "unknown",
       },
 
-      overlayImageUrl: String,
+      overlayImageKey: {
+        type: String,
+        default: null,
+      },
+
       summary: String,
     },
 
-    /* HEALTH */
+    /* HAIR HEALTH */
 
     health: {
-      score: { type: Number, min: 0, max: 100 },
+      score: {
+        type: Number,
+        min: 0,
+        max: 100,
+      },
+
       label: String,
+
       breakdown: mongoose.Schema.Types.Mixed,
     },
 
-    /* LIFESTYLE */
+    /* LIFESTYLE ANALYSIS */
 
     lifestyle: mongoose.Schema.Types.Mixed,
 
@@ -131,18 +180,23 @@ const AIResultSchema = new mongoose.Schema(
       details: mongoose.Schema.Types.Mixed,
     },
 
-    /* OUTPUT */
+    /* RECOMMENDATIONS */
 
     suggestions: mongoose.Schema.Types.Mixed,
+
     tipsAndRemedies: mongoose.Schema.Types.Mixed,
+
     futureRisk: mongoose.Schema.Types.Mixed,
+
     timeline: mongoose.Schema.Types.Mixed,
 
-    /* PROGRESS */
+    /* PROGRESS TRACKING */
 
     progress: {
       previousScore: Number,
+
       currentScore: Number,
+
       scoreChange: Number,
 
       hairTrend: {
@@ -162,7 +216,7 @@ const AIResultSchema = new mongoose.Schema(
 
     adaptiveRoutine: mongoose.Schema.Types.Mixed,
 
-    /* ASSISTANT */
+    /* AI ASSISTANT CONTEXT */
 
     assistantContext: mongoose.Schema.Types.Mixed,
 
@@ -173,9 +227,10 @@ const AIResultSchema = new mongoose.Schema(
       suggestions: mongoose.Schema.Types.Mixed,
     },
 
-    /* DEBUG */
+    /* DEBUG / INTERNAL */
 
     engineVersion: String,
+
     modelVersion: String,
 
     aiResponse: {
@@ -188,26 +243,41 @@ const AIResultSchema = new mongoose.Schema(
   {
     timestamps: true,
     strict: true,
-  },
+  }
 );
 
-/* INDEXES */
+/* =====================================================
+   INDEXES
+===================================================== */
+
+/* Query user scan history */
 
 AIResultSchema.index({ userId: 1, createdAt: -1 });
+
+/* Find active analysis */
+
 AIResultSchema.index({ userId: 1, status: 1 });
+
+/* Prevent concurrent scans */
 
 AIResultSchema.index(
   { userId: 1 },
   {
     unique: true,
     partialFilterExpression: { status: "processing" },
-  },
+  }
 );
+
+/* Auto-delete failed scans after 24h */
 
 AIResultSchema.index(
   { createdAt: 1 },
-  { expireAfterSeconds: 86400, partialFilterExpression: { status: "failed" } }
+  {
+    expireAfterSeconds: 86400,
+    partialFilterExpression: { status: "failed" },
+  }
 );
 
 module.exports =
-  mongoose.models.AIResult || mongoose.model("AIResult", AIResultSchema);
+  mongoose.models.AIResult ||
+  mongoose.model("AIResult", AIResultSchema);

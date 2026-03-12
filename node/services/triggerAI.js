@@ -1,6 +1,11 @@
 const AiResult = require("../models/AIResult");
 const { callAnalyze } = require("./flask.service");
 
+function extractS3Key(url) {
+  if (!url) return null;
+  return url.split(".amazonaws.com/")[1];
+}
+
 exports.triggerAIAnalysis = async (reqBody) => {
   try {
     const flaskResponse = await callAnalyze(reqBody);
@@ -15,11 +20,10 @@ exports.triggerAIAnalysis = async (reqBody) => {
       status: "completed",
 
       images: {
-        top: reqBody.topImageUrl || "",
-        front: reqBody.frontImageUrl || "",
-        back: reqBody.backImageUrl || "",
-      },
-
+  top: extractS3Key(reqBody.topImageUrl),
+  front: extractS3Key(reqBody.frontImageUrl),
+  back: extractS3Key(reqBody.backImageUrl),
+},
       hairloss: flaskResponse.hairloss || {},
       dandruff: flaskResponse.dandruff || {},
       health: flaskResponse.health || {},

@@ -13,7 +13,6 @@ require("dotenv").config();
 const pLimit = require("p-limit");
 const aiLimiter = pLimit(2);
 
-
 /* ── MODELS ──────────────────────────────────────── */
 const User = require("./models/User");
 const authenticateUser = require("./middleware/auth");
@@ -68,20 +67,24 @@ const s3 = new AWS.S3({
 
 const S3_BUCKET = process.env.AWS_BUCKET_NAME;
 
+function getS3KeyFromUrl(url) {
+  if (!url) return null;
+  return url.split(".amazonaws.com/")[1];
+}
+
 app.post("/api/upload/presign", authenticateUser, async (req, res) => {
   try {
-    const { filename, contentType, username } = req.body;
+    const { filename, contentType, view } = req.body;
+    const userId = req.userId;
 
-    if (!filename || !contentType) {
+    if (!filename || !contentType || !view) {
       return res.status(400).json({
         success: false,
-        message: "filename and contentType required",
+        message: "filename, contentType and view required",
       });
     }
 
-    const uniqueId = uuidv4();
-
-    const key = `hair/${username}/${uniqueId}_${filename}`;
+    const key = `hair/${userId}/${view}/${uuidv4()}_${filename}`;
 
     const params = {
       Bucket: S3_BUCKET,
@@ -99,11 +102,7 @@ app.post("/api/upload/presign", authenticateUser, async (req, res) => {
     });
   } catch (err) {
     console.error("Presign error:", err);
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to generate upload URL",
-    });
+    res.status(500).json({ success: false });
   }
 });
 
@@ -373,9 +372,6 @@ app.post(
   },
 );
 
-/* ═══════════════════════════════════════════════════
-   AI ANALYZE — MULTI VIEW
-═══════════════════════════════════════════════════ */
 // ═══════════════════════════════════════════════════
 // AI ANALYZE — S3 URL PIPELINE
 // ═══════════════════════════════════════════════════
@@ -389,8 +385,18 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
       message: "Unauthorized",
     });
   }
-
   const { topImageUrl, frontImageUrl, backImageUrl } = req.body;
+
+  if (!topImageUrl) {
+    return res.status(400).json({
+      success: false,
+      message: "topImageUrl is required",
+    });
+  }
+
+  const topImageKey = extractS3Key(topImageUrl);
+  const frontImageKey = frontImageUrl ? extractS3Key(frontImageUrl) : null;
+  const backImageKey = backImageUrl ? extractS3Key(backImageUrl) : null;
 
   if (!topImageUrl) {
     return res.status(400).json({
@@ -418,36 +424,31 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
       });
     }
 
-    const username = req.user?.username ?? userId.toString();
-
     // ─────────────────────────────
     // Create processing record
     // ─────────────────────────────
 
     try {
+      aiRecord = await AiResult.create({
+        userId,
+        type: "hair_analysis",
+        status: "processing",
+        images: {
+          top: topImageKey,
+          front: frontImageKey,
+          back: backImageKey,
+        },
+      });
+    } catch (err) {
+      if (err.code === 11000) {
+        return res.status(400).json({
+          success: false,
+          message: "Analysis already running",
+        });
+      }
 
-  aiRecord = await AiResult.create({
-    userId,
-    type: "hair_analysis",
-    status: "processing",
-    images: {
-      top: topImageUrl,
-      front: frontImageUrl || null,
-      back: backImageUrl || null,
-    },
-  });
-
-} catch (err) {
-
-  if (err.code === 11000) {
-    return res.status(400).json({
-      success: false,
-      message: "Analysis already running",
-    });
-  }
-
-  throw err;
-}
+      throw err;
+    }
 
     // ─────────────────────────────
     // Load flashcard answers
@@ -497,11 +498,10 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
         axios.post(
           `${PYTHON_AI_URL}/analyze`,
           {
-            topImageUrl,
-            frontImageUrl,
-            backImageUrl,
+            topImageKey,
+            frontImageKey,
+            backImageKey,
             userId,
-            username,
             flashcardAnswers,
             previousHairScore,
             previousDandruffSeverity,
@@ -554,7 +554,7 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
         aiResponse: data,
         error: null,
       },
-      { new: true, lean: true},
+      { new: true, lean: true },
     );
 
     // ─────────────────────────────
@@ -767,35 +767,30 @@ app.patch("/api/notifications/read-all", authenticateUser, (req, res) => {
 /* ── LATEST REPORT ───────────────────────────────── */
 app.get("/api/ai/latest", authenticateUser, async (req, res) => {
   try {
-
     const userId = req.user._id;
 
-    const result = await AiResult.findOne({ userId })
-      .sort({ createdAt: -1 });
+    const result = await AiResult.findOne({ userId }).sort({ createdAt: -1 });
 
     if (!result) {
       return res.json({
         success: true,
         status: "none",
-        result: null
+        result: null,
       });
     }
 
     return res.json({
       success: true,
       status: result.status,
-      result
+      result,
     });
-
   } catch (error) {
-
     console.error("Get latest report error:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Server error"
+      message: "Server error",
     });
-
   }
 });
 
