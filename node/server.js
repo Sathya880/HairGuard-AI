@@ -46,7 +46,7 @@ app.use(
 app.use(helmet());
 app.use(express.json());
 
-const MongoStore = require("connect-mongo");
+const MongoStore = require("connect-mongo").default;
 
 app.use(
   session({
@@ -55,8 +55,13 @@ app.use(
     saveUninitialized: false,
 
     store: MongoStore.create({
-      mongoUrl: process.env.MONGO_URI
-    })
+      mongoUrl: process.env.MONGO_URI,
+      collectionName: "sessions",
+    }),
+
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+    },
   })
 );
 
