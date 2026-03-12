@@ -63,7 +63,6 @@ const AIResultSchema = new mongoose.Schema(
       type: String,
       enum: ["processing", "completed", "failed"],
       default: "processing",
-      required: true,
       index: true,
     },
 
@@ -110,28 +109,15 @@ const AIResultSchema = new mongoose.Schema(
         max: 100,
       },
 
-      /* S3 KEY of overlay */
-
       overlayImageKey: {
         type: String,
         default: null,
       },
 
       views: {
-        top: {
-          type: ViewSeveritySchema,
-          default: {},
-        },
-
-        front: {
-          type: ViewSeveritySchema,
-          default: {},
-        },
-
-        back: {
-          type: ViewSeveritySchema,
-          default: {},
-        },
+        top: { type: ViewSeveritySchema, default: {} },
+        front: { type: ViewSeveritySchema, default: {} },
+        back: { type: ViewSeveritySchema, default: {} },
       },
 
       summary: String,
@@ -168,7 +154,7 @@ const AIResultSchema = new mongoose.Schema(
       breakdown: mongoose.Schema.Types.Mixed,
     },
 
-    /* LIFESTYLE ANALYSIS */
+    /* LIFESTYLE */
 
     lifestyle: mongoose.Schema.Types.Mixed,
 
@@ -190,13 +176,11 @@ const AIResultSchema = new mongoose.Schema(
 
     timeline: mongoose.Schema.Types.Mixed,
 
-    /* PROGRESS TRACKING */
+    /* PROGRESS */
 
     progress: {
       previousScore: Number,
-
       currentScore: Number,
-
       scoreChange: Number,
 
       hairTrend: {
@@ -216,7 +200,7 @@ const AIResultSchema = new mongoose.Schema(
 
     adaptiveRoutine: mongoose.Schema.Types.Mixed,
 
-    /* AI ASSISTANT CONTEXT */
+    /* ASSISTANT */
 
     assistantContext: mongoose.Schema.Types.Mixed,
 
@@ -227,10 +211,9 @@ const AIResultSchema = new mongoose.Schema(
       suggestions: mongoose.Schema.Types.Mixed,
     },
 
-    /* DEBUG / INTERNAL */
+    /* DEBUG */
 
     engineVersion: String,
-
     modelVersion: String,
 
     aiResponse: {
@@ -250,7 +233,7 @@ const AIResultSchema = new mongoose.Schema(
    INDEXES
 ===================================================== */
 
-/* Query user scan history */
+/* Fast user history */
 
 AIResultSchema.index({ userId: 1, createdAt: -1 });
 
@@ -258,7 +241,7 @@ AIResultSchema.index({ userId: 1, createdAt: -1 });
 
 AIResultSchema.index({ userId: 1, status: 1 });
 
-/* Prevent concurrent scans */
+/* Prevent multiple scans running */
 
 AIResultSchema.index(
   { userId: 1 },

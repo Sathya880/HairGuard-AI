@@ -377,6 +377,8 @@ app.post(
 // ═══════════════════════════════════════════════════
 
 app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
+  let aiRecord;
+
   try {
     const userId = req.user?._id;
 
@@ -387,7 +389,6 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
       });
     }
 
-    // ✅ READ BODY FIRST
     const { topImageUrl, frontImageUrl, backImageUrl } = req.body;
 
     if (!topImageUrl) {
@@ -397,33 +398,46 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
       });
     }
 
-    // ✅ convert URL → S3 key
+    // safer key extraction
     const extractS3Key = (url) => {
-      if (!url) return null;
-      const parts = url.split(".amazonaws.com/");
-      return parts.length > 1 ? parts[1] : null;
+      try {
+        return new URL(url).pathname.substring(1);
+      } catch {
+        return null;
+      }
     };
 
     const topImageKey = extractS3Key(topImageUrl);
     const frontImageKey = frontImageUrl ? extractS3Key(frontImageUrl) : null;
     const backImageKey = backImageUrl ? extractS3Key(backImageUrl) : null;
 
-    let aiRecord;
-
-    // Prevent concurrent scan
+    // check existing processing job
     const existing = await AiResult.findOne({
       userId,
       status: "processing",
     });
 
     if (existing) {
-      return res.status(400).json({
-        success: false,
-        message: "Analysis already running",
-      });
+      const started = new Date(existing.createdAt).getTime();
+      const now = Date.now();
+
+      const MAX_PROCESS_TIME = 5 * 60 * 1000;
+
+      if (now - started < MAX_PROCESS_TIME) {
+        return res.status(400).json({
+          success: false,
+          message: "Analysis already running",
+        });
+      }
+
+      // stale job cleanup
+      await AiResult.updateOne(
+        { _id: existing._id },
+        { $set: { status: "failed", error: "Stale job reset" } }
+      );
     }
 
-    // Create record
+    // create processing record
     aiRecord = await AiResult.create({
       userId,
       type: "hair_analysis",
@@ -435,7 +449,7 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
       },
     });
 
-    // Call Python AI
+    // call python AI
     const aiResponse = await axios.post(
       `${PYTHON_AI_URL}/analyze`,
       {
@@ -444,7 +458,9 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
         backImageKey,
         userId,
       },
-      { timeout: 30000 },
+      {
+        timeout: 120000, // 2 minutes
+      }
     );
 
     const data = aiResponse.data;
@@ -453,6 +469,7 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
       throw new Error("Invalid AI response");
     }
 
+    // update result
     const finalResult = await AiResult.findByIdAndUpdate(
       aiRecord._id,
       {
@@ -474,15 +491,24 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
         aiResponse: data,
         error: null,
       },
-      { new: true, lean: true },
+      { new: true, lean: true }
     );
 
     return res.json({
       success: true,
       result: finalResult,
     });
+
   } catch (err) {
     console.error("AI ANALYZE ERROR:", err);
+
+    // update failed record if exists
+    if (aiRecord?._id) {
+      await AiResult.updateOne(
+        { _id: aiRecord._id },
+        { $set: { status: "failed", error: err.message } }
+      );
+    }
 
     return res.status(500).json({
       success: false,
@@ -490,6 +516,7 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
     });
   }
 });
+
 /* ── HISTORY ─────────────────────────────────────── */
 app.get("/api/ai/history", authenticateUser, async (req, res) => {
   try {
