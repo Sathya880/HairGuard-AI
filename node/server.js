@@ -46,12 +46,18 @@ app.use(
 app.use(helmet());
 app.use(express.json());
 
+const MongoStore = require("connect-mongo");
+
 app.use(
   session({
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-  }),
+
+    store: MongoStore.create({
+      mongoUrl: process.env.MONGO_URI
+    })
+  })
 );
 
 
