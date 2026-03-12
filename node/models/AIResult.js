@@ -107,6 +107,7 @@ const AIResultSchema = new mongoose.Schema(
         type: Number,
         min: 0,
         max: 100,
+        default: null,
       },
 
       overlayImageKey: {
@@ -115,12 +116,26 @@ const AIResultSchema = new mongoose.Schema(
       },
 
       views: {
-        top: { type: ViewSeveritySchema, default: {} },
-        front: { type: ViewSeveritySchema, default: {} },
-        back: { type: ViewSeveritySchema, default: {} },
+        top: {
+          type: ViewSeveritySchema,
+          default: () => ({}),
+        },
+
+        front: {
+          type: ViewSeveritySchema,
+          default: () => ({}),
+        },
+
+        back: {
+          type: ViewSeveritySchema,
+          default: () => ({}),
+        },
       },
 
-      summary: String,
+      summary: {
+        type: String,
+        default: null,
+      },
     },
 
     /* DANDRUFF */
@@ -137,7 +152,10 @@ const AIResultSchema = new mongoose.Schema(
         default: null,
       },
 
-      summary: String,
+      summary: {
+        type: String,
+        default: null,
+      },
     },
 
     /* HAIR HEALTH */
@@ -147,62 +165,106 @@ const AIResultSchema = new mongoose.Schema(
         type: Number,
         min: 0,
         max: 100,
+        default: null,
       },
 
-      label: String,
+      label: {
+        type: String,
+        default: null,
+      },
 
-      breakdown: mongoose.Schema.Types.Mixed,
+      breakdown: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {},
+      },
     },
 
     /* LIFESTYLE */
 
-    lifestyle: mongoose.Schema.Types.Mixed,
+    lifestyle: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
 
     /* ROOT CAUSE */
 
     rootCause: {
-      primary: String,
-      secondary: String,
-      details: mongoose.Schema.Types.Mixed,
+      primary: {
+        type: String,
+        default: null,
+      },
+
+      secondary: {
+        type: String,
+        default: null,
+      },
+
+      details: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {},
+      },
     },
 
     /* RECOMMENDATIONS */
 
-    suggestions: mongoose.Schema.Types.Mixed,
+    suggestions: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
 
-    tipsAndRemedies: mongoose.Schema.Types.Mixed,
+    tipsAndRemedies: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
 
-    futureRisk: mongoose.Schema.Types.Mixed,
+    futureRisk: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
 
-    timeline: mongoose.Schema.Types.Mixed,
+    timeline: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
 
     /* PROGRESS */
 
     progress: {
-      previousScore: Number,
-      currentScore: Number,
-      scoreChange: Number,
+      previousScore: { type: Number, default: null },
+      currentScore: { type: Number, default: null },
+      scoreChange: { type: Number, default: null },
 
       hairTrend: {
         type: String,
         enum: ["Improved", "Worsened", "Stable", "First Scan"],
+        default: null,
       },
 
       dandruffTrend: {
         type: String,
         enum: ["Improved", "Worsened", "Stable", "First Scan"],
+        default: null,
       },
     },
 
     /* SIMULATION */
 
-    simulation: mongoose.Schema.Types.Mixed,
+    simulation: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
 
-    adaptiveRoutine: mongoose.Schema.Types.Mixed,
+    adaptiveRoutine: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
 
     /* ASSISTANT */
 
-    assistantContext: mongoose.Schema.Types.Mixed,
+    assistantContext: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
 
     assistant: {
       state: String,

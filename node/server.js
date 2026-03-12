@@ -67,15 +67,49 @@ const s3 = new AWS.S3({
 
 const S3_BUCKET = process.env.AWS_BUCKET_NAME;
 
-function getS3KeyFromUrl(url) {
-  if (!url) return null;
-  return url.split(".amazonaws.com/")[1];
+/* ── S3 URL HELPERS ───────────────────────────── */
+
+const S3_BASE_URL = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/`;
+
+function buildS3Url(key) {
+  if (!key) return null;
+
+  // already full URL
+  if (key.startsWith("http://") || key.startsWith("https://")) {
+    return key;
+  }
+
+  return `${S3_BASE_URL}${key}`;
+}
+
+function attachImageUrls(result) {
+  if (!result) return result;
+
+  if (result.images) {
+    result.images.top = buildS3Url(result.images.top);
+    result.images.front = buildS3Url(result.images.front);
+    result.images.back = buildS3Url(result.images.back);
+  }
+
+  if (result.hairloss?.overlayImageKey) {
+    result.hairloss.overlayImageUrl = buildS3Url(
+      result.hairloss.overlayImageKey,
+    );
+  }
+
+  if (result.dandruff?.overlayImageKey) {
+    result.dandruff.overlayImageUrl = buildS3Url(
+      result.dandruff.overlayImageKey,
+    );
+  }
+
+  return result;
 }
 
 app.post("/api/upload/presign", authenticateUser, async (req, res) => {
   try {
     const { filename, contentType, view } = req.body;
-    const userId = req.userId;
+    const userId = req.user._id;
 
     if (!filename || !contentType || !view) {
       return res.status(400).json({
@@ -398,7 +432,6 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
       });
     }
 
-    // safer key extraction
     const extractS3Key = (url) => {
       try {
         return new URL(url).pathname.substring(1);
@@ -411,7 +444,6 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
     const frontImageKey = frontImageUrl ? extractS3Key(frontImageUrl) : null;
     const backImageKey = backImageUrl ? extractS3Key(backImageUrl) : null;
 
-    // check existing processing job
     const existing = await AiResult.findOne({
       userId,
       status: "processing",
@@ -430,14 +462,12 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
         });
       }
 
-      // stale job cleanup
       await AiResult.updateOne(
         { _id: existing._id },
-        { $set: { status: "failed", error: "Stale job reset" } }
+        { $set: { status: "failed", error: "Stale job reset" } },
       );
     }
 
-    // create processing record
     aiRecord = await AiResult.create({
       userId,
       type: "hair_analysis",
@@ -449,19 +479,18 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
       },
     });
 
-    // call python AI
-    const aiResponse = await axios.post(
-      `${PYTHON_AI_URL}/analyze`,
-      {
-        topImageKey,
-        frontImageKey,
-        backImageKey,
-        userId,
-      },
-      {
-        timeout: 120000, // 2 minutes
-      }
-    );
+    const aiResponse = await aiLimiter(async () => {
+      return axios.post(
+        `${PYTHON_AI_URL}/analyze`,
+        {
+          topImageKey,
+          frontImageKey,
+          backImageKey,
+          userId,
+        },
+        { timeout: 120000 },
+      );
+    });
 
     const data = aiResponse.data;
 
@@ -469,8 +498,7 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
       throw new Error("Invalid AI response");
     }
 
-    // update result
-    const finalResult = await AiResult.findByIdAndUpdate(
+    let finalResult = await AiResult.findByIdAndUpdate(
       aiRecord._id,
       {
         status: "completed",
@@ -491,22 +519,24 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
         aiResponse: data,
         error: null,
       },
-      { new: true, lean: true }
+      { new: true, lean: true },
     );
+
+    finalResult = attachImageUrls(finalResult);
+    // auto-generate personalised routine
+    await _autoGenerateRoutine(userId, finalResult);
 
     return res.json({
       success: true,
       result: finalResult,
     });
-
   } catch (err) {
     console.error("AI ANALYZE ERROR:", err);
 
-    // update failed record if exists
     if (aiRecord?._id) {
       await AiResult.updateOne(
         { _id: aiRecord._id },
-        { $set: { status: "failed", error: err.message } }
+        { $set: { status: "failed", error: err.message } },
       );
     }
 
@@ -521,6 +551,7 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
 app.get("/api/ai/history", authenticateUser, async (req, res) => {
   try {
     const userId = req.user?._id;
+
     if (!userId) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
@@ -534,31 +565,16 @@ app.get("/api/ai/history", authenticateUser, async (req, res) => {
       return res.status(200).json({ success: true, history: [] });
     }
 
-    const history = records.map((record) => ({
-      _id: record._id,
-      createdAt: record.createdAt,
-      hairloss: record.hairloss || {},
-      dandruff: record.dandruff || {},
-      health: record.health || {},
-      lifestyle: record.lifestyle || {},
-      simulation: record.simulation || {},
-      rootCause: record.rootCause || {},
-      suggestions: record.suggestions || {},
-      tipsAndRemedies: record.tipsAndRemedies || {},
-      futureRisk: record.futureRisk || {},
-      timeline: record.timeline || {},
-      routine: record.routine || [],
-      adaptiveRoutine: record.adaptiveRoutine || [],
-      progress: record.progress || {},
-      images: record.images || {},
-    }));
+    const history = records.map((record) => attachImageUrls(record));
 
     return res.status(200).json({ success: true, history });
   } catch (err) {
     console.error("History fetch error:", err.message);
-    return res
-      .status(500)
-      .json({ success: false, message: "Server error fetching history" });
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error fetching history",
+    });
   }
 });
 
@@ -690,7 +706,9 @@ app.get("/api/ai/latest", authenticateUser, async (req, res) => {
   try {
     const userId = req.user._id;
 
-    const result = await AiResult.findOne({ userId }).sort({ createdAt: -1 });
+    let result = await AiResult.findOne({ userId })
+      .sort({ createdAt: -1 })
+      .lean();
 
     if (!result) {
       return res.json({
@@ -699,6 +717,8 @@ app.get("/api/ai/latest", authenticateUser, async (req, res) => {
         result: null,
       });
     }
+
+    result = attachImageUrls(result);
 
     return res.json({
       success: true,
