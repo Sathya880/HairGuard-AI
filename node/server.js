@@ -479,6 +479,20 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
       },
     });
 
+    // Load saved flashcard answers so Python can compute lifestyle risk
+    let flashcardAnswers = {};
+    try {
+      const userAnswerDoc = await UserAnswer.findOne({ userId }).lean();
+      if (userAnswerDoc?.answers?.length) {
+        // Convert array [{cardId, question, selectedAnswer}] → { cardId: selectedAnswer[] }
+        flashcardAnswers = Object.fromEntries(
+          userAnswerDoc.answers.map((a) => [a.cardId, a.selectedAnswer])
+        );
+      }
+    } catch (ansErr) {
+      logger?.warn?.("Could not load flashcard answers:", ansErr.message);
+    }
+
     const aiResponse = await aiLimiter(async () => {
       return axios.post(
         `${PYTHON_AI_URL}/analyze`,
@@ -487,6 +501,7 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
           frontImageKey,
           backImageKey,
           userId,
+          flashcardAnswers,
         },
         { timeout: 120000 },
       );

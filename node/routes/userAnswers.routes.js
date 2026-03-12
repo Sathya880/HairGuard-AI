@@ -38,15 +38,21 @@ router.post("/submit10", authenticateUser, async (req, res) => {
     if (cleanAnswers.length !== answers.length) {
       return res.status(400).json({
         success: false,
-        message: "All answers must be valid (cardId, question, selectedAnswer required)",
+        message:
+          "All answers must be valid (cardId, question, selectedAnswer required)",
       });
     }
 
-    // 🔁 ONE DOCUMENT PER USER — upsert
-    await UserAnswer.findOneAndUpdate(
+    // 🔁 ONE DOCUMENT PER USER — upsert by userId only
+    // Using updateOne + upsert instead of findOneAndUpdate avoids
+    // the E11000 duplicate key race on the username_1 stale index.
+    await UserAnswer.updateOne(
       { userId },
-      { userId, answers: cleanAnswers },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      {
+        $set: { answers: cleanAnswers },
+        $setOnInsert: { userId, attemptNumber: 1 },
+      },
+      { upsert: true }
     );
 
     return res.json({
@@ -54,6 +60,42 @@ router.post("/submit10", authenticateUser, async (req, res) => {
       message: `${cleanAnswers.length} answers saved successfully`,
     });
   } catch (err) {
+    // E11000 = duplicate key — can happen if two requests race on first submit.
+    // Retry once with a plain update (document must already exist).
+    if (err.code === 11000) {
+      try {
+        const userId = req.user._id;
+        const { answers } = req.body;
+        const cleanAnswers = (answers || [])
+          .filter(
+            (a) =>
+              a &&
+              a.cardId &&
+              typeof a.question === "string" &&
+              Array.isArray(a.selectedAnswer) &&
+              a.selectedAnswer.length > 0
+          )
+          .map((a) => ({
+            cardId: a.cardId.toString(),
+            question: a.question.trim(),
+            selectedAnswer: a.selectedAnswer.map((s) => String(s).trim()),
+          }));
+
+        await UserAnswer.updateOne({ userId }, { $set: { answers: cleanAnswers } });
+
+        return res.json({
+          success: true,
+          message: `${cleanAnswers.length} answers saved successfully`,
+        });
+      } catch (retryErr) {
+        console.error("Save answers retry error:", retryErr);
+        return res.status(500).json({
+          success: false,
+          message: "Failed to save answers. Please try again.",
+        });
+      }
+    }
+
     console.error("Save answers error:", err);
     return res.status(500).json({
       success: false,
