@@ -445,6 +445,10 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
       });
     }
 
+    /* ─────────────────────────────────────────
+       Extract S3 keys
+    ───────────────────────────────────────── */
+
     const extractS3Key = (url) => {
       try {
         return new URL(url).pathname.substring(1);
@@ -456,6 +460,10 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
     const topImageKey = extractS3Key(topImageUrl);
     const frontImageKey = frontImageUrl ? extractS3Key(frontImageUrl) : null;
     const backImageKey = backImageUrl ? extractS3Key(backImageUrl) : null;
+
+    /* ─────────────────────────────────────────
+       Prevent duplicate scans
+    ───────────────────────────────────────── */
 
     const existing = await AiResult.findOne({
       userId,
@@ -477,9 +485,13 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
 
       await AiResult.updateOne(
         { _id: existing._id },
-        { $set: { status: "failed", error: "Stale job reset" } },
+        { $set: { status: "failed", error: "Stale job reset" } }
       );
     }
+
+    /* ─────────────────────────────────────────
+       Create processing record
+    ───────────────────────────────────────── */
 
     aiRecord = await AiResult.create({
       userId,
@@ -492,22 +504,30 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
       },
     });
 
-    // Load saved flashcard answers so Python can compute lifestyle risk
+    /* ─────────────────────────────────────────
+       Load flashcard answers
+    ───────────────────────────────────────── */
+
     let flashcardAnswers = {};
+
     try {
       const userAnswerDoc = await UserAnswer.findOne({ userId }).lean();
+
       if (userAnswerDoc?.answers?.length) {
-        // Convert array [{cardId, question, selectedAnswer}] → { cardId: selectedAnswer[] }
         flashcardAnswers = Object.fromEntries(
           userAnswerDoc.answers.map((a) => [a.cardId, a.selectedAnswer])
         );
       }
-    } catch (ansErr) {
-      logger?.warn?.("Could not load flashcard answers:", ansErr.message);
+    } catch (err) {
+      console.warn("Could not load flashcard answers:", err.message);
     }
 
-    const aiResponse = await aiLimiter(async () => {
-      return axios.post(
+    /* ─────────────────────────────────────────
+       Call Python AI server
+    ───────────────────────────────────────── */
+
+    const aiResponse = await aiLimiter(() =>
+      axios.post(
         `${PYTHON_AI_URL}/analyze`,
         {
           topImageKey,
@@ -516,43 +536,65 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
           userId,
           flashcardAnswers,
         },
-        { timeout: 120000 },
-      );
-    });
+        { timeout: 120000 }
+      )
+    );
 
-    const data = aiResponse.data;
+    const data = aiResponse?.data;
 
-    if (!data || !data.success) {
+    if (!data || data.success !== true) {
       throw new Error("Invalid AI response");
     }
 
-    // ── Normalize Flask snake_case → Mongoose camelCase ──────────
+    /* ─────────────────────────────────────────
+       Ensure required fields exist
+    ───────────────────────────────────────── */
+
+    data.hairloss = data.hairloss || {};
+    data.dandruff = data.dandruff || {};
+    data.health = data.health || {};
+    data.futureRisk = data.futureRisk || {};
+    data.progress = data.progress || {};
+
+    /* ─────────────────────────────────────────
+       Normalize future risk chart format
+    ───────────────────────────────────────── */
+
+    if (data.futureRisk?.trend_points) {
+      data.futureRisk.trend_points = data.futureRisk.trend_points.map((p) => ({
+        month: p.month,
+        label: p.label,
+        score: p.score,
+      }));
+    }
+
+    /* ─────────────────────────────────────────
+       Normalize hairloss result
+    ───────────────────────────────────────── */
+
     function normalizeHairloss(hl, healthBreakdown) {
       if (!hl) return {};
-      const views = hl.views || {};
-      const normalizeView = (v) => {
-        if (!v) return {};
-        return {
-          severity: v.severity ?? "unknown",
-          damage:   v.damage   ?? null,
-          weight:   v.weight   ?? null,
-        };
-      };
 
-      // Resolve combinedDamage: Python now sends it directly.
-      // Fallback: pull from health.breakdown.hairloss.combined_damage
+      const views = hl.views || {};
+
+      const normalizeView = (v) => ({
+        severity: v?.severity ?? "unknown",
+        damage: v?.damage ?? null,
+        weight: v?.weight ?? null,
+      });
+
       let combinedDamage =
-        hl.combinedDamage  ??
+        hl.combinedDamage ??
         hl.combined_damage ??
         healthBreakdown?.hairloss?.combined_damage ??
         null;
 
-      // Last resort: compute weighted average from per-view damages
-      if (combinedDamage === null || combinedDamage === undefined) {
-        const top   = views.top?.damage   ?? null;
+      if (combinedDamage == null) {
+        const top = views.top?.damage ?? null;
         const front = views.front?.damage ?? null;
-        const back  = views.back?.damage  ?? null;
-        if (top !== null && front !== null && back !== null) {
+        const back = views.back?.damage ?? null;
+
+        if (top != null && front != null && back != null) {
           combinedDamage = Math.round(top * 0.5 + front * 0.3 + back * 0.2);
         }
       }
@@ -562,74 +604,103 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
         combinedDamage,
         overlayImageKey: hl.overlayImageKey ?? hl.overlay_image_key ?? null,
         views: {
-          top:   normalizeView(views.top),
+          top: normalizeView(views.top),
           front: normalizeView(views.front),
-          back:  normalizeView(views.back),
+          back: normalizeView(views.back),
         },
         summary: hl.summary ?? null,
       };
     }
 
+    /* ─────────────────────────────────────────
+       Normalize root cause
+    ───────────────────────────────────────── */
+
     function normalizeRootCause(rc) {
       if (!rc || Object.keys(rc).length === 0) return {};
+
       return {
-        // Short keys (legacy Flutter reads rc.primary / rc.secondary)
-        primary:            rc.primary            ?? rc.primary_cause    ?? rc.primaryCause   ?? null,
-        secondary:          rc.secondary          ?? rc.secondary_cause  ?? rc.secondaryCause ?? null,
-        // Full Bayesian fields (BayesianRootCause.fromJson in Flutter)
-        primary_cause:      rc.primary_cause      ?? rc.primary          ?? null,
-        secondary_cause:    rc.secondary_cause    ?? rc.secondary        ?? null,
-        confidence_percent: rc.confidence_percent ?? rc.confidence       ?? 0,
-        causes:             rc.causes             ?? [],
-        impact_breakdown:   rc.impact_breakdown   ?? rc.details          ?? {},
-        details:            rc.impact_breakdown   ?? rc.details          ?? {},
-        data_strength:      rc.data_strength      ?? "Moderate",
-        network_summary:    rc.network_summary    ?? "",
+        primary: rc.primary ?? rc.primary_cause ?? null,
+        secondary: rc.secondary ?? rc.secondary_cause ?? null,
+        primary_cause: rc.primary_cause ?? rc.primary ?? null,
+        secondary_cause: rc.secondary_cause ?? rc.secondary ?? null,
+        confidence_percent: rc.confidence_percent ?? rc.confidence ?? 0,
+        causes: rc.causes ?? [],
+        impact_breakdown: rc.impact_breakdown ?? rc.details ?? {},
+        details: rc.impact_breakdown ?? rc.details ?? {},
+        data_strength: rc.data_strength ?? "Moderate",
+        network_summary: rc.network_summary ?? "",
       };
     }
 
-    const normalizedHairloss  = normalizeHairloss(data.hairloss, data.health?.breakdown);
+    const normalizedHairloss = normalizeHairloss(
+      data.hairloss,
+      data.health?.breakdown
+    );
+
     const normalizedRootCause = normalizeRootCause(data.rootCause);
+
+    /* ─────────────────────────────────────────
+       Save completed result
+    ───────────────────────────────────────── */
 
     let finalResult = await AiResult.findByIdAndUpdate(
       aiRecord._id,
       {
         status: "completed",
         hairloss: normalizedHairloss,
-        dandruff: data.dandruff || {},
-        health: data.health || {},
+        dandruff: data.dandruff,
+        health: data.health,
         lifestyle: data.lifestyle || {},
         rootCause: normalizedRootCause,
         simulation: data.simulation || {},
         suggestions: data.suggestions || {},
         tipsAndRemedies: data.tipsAndRemedies || {},
-        futureRisk: data.futureRisk || {},
+        futureRisk: data.futureRisk,
         timeline: data.timeline || {},
         routine: data.routine || [],
         adaptiveRoutine: data.adaptiveRoutine || [],
-        progress: data.progress ?? null,
+        progress: data.progress,
         assistantContext: data.assistantContext || {},
-        aiResponse: data,
+
+        /* store trimmed AI payload */
+        aiResponse: {
+          health: data.health,
+          hairloss: data.hairloss,
+          dandruff: data.dandruff,
+          futureRisk: data.futureRisk,
+        },
+
         error: null,
       },
-      { new: true, lean: true },
+      { new: true, lean: true }
     );
 
+    /* ─────────────────────────────────────────
+       Attach S3 URLs
+    ───────────────────────────────────────── */
+
     finalResult = attachImageUrls(finalResult);
-    // auto-generate personalised routine
+
+    /* ─────────────────────────────────────────
+       Auto generate routine
+    ───────────────────────────────────────── */
+
     await _autoGenerateRoutine(userId, finalResult);
 
     return res.json({
       success: true,
       result: finalResult,
     });
+
   } catch (err) {
+
     console.error("AI ANALYZE ERROR:", err);
 
     if (aiRecord?._id) {
       await AiResult.updateOne(
         { _id: aiRecord._id },
-        { $set: { status: "failed", error: err.message } },
+        { $set: { status: "failed", error: err.message } }
       );
     }
 
