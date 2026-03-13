@@ -553,20 +553,7 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
     data.hairloss = data.hairloss || {};
     data.dandruff = data.dandruff || {};
     data.health = data.health || {};
-    data.futureRisk = data.futureRisk || {};
     data.progress = data.progress || {};
-
-    /* ─────────────────────────────────────────
-       Normalize future risk chart format
-    ───────────────────────────────────────── */
-
-    if (data.futureRisk?.trend_points) {
-      data.futureRisk.trend_points = data.futureRisk.trend_points.map((p) => ({
-        month: p.month,
-        label: p.label,
-        score: p.score,
-      }));
-    }
 
     /* ─────────────────────────────────────────
        Normalize hairloss result
@@ -656,7 +643,6 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
         simulation: data.simulation || {},
         suggestions: data.suggestions || {},
         tipsAndRemedies: data.tipsAndRemedies || {},
-        futureRisk: data.futureRisk,
         timeline: data.timeline || {},
         routine: data.routine || [],
         adaptiveRoutine: data.adaptiveRoutine || [],
@@ -668,7 +654,6 @@ app.post("/api/ai/analyze", authenticateUser, async (req, res) => {
           health: data.health,
           hairloss: data.hairloss,
           dandruff: data.dandruff,
-          futureRisk: data.futureRisk,
         },
 
         error: null,

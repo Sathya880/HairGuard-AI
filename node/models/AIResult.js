@@ -231,11 +231,6 @@ const AIResultSchema = new mongoose.Schema(
       default: {},
     },
 
-    futureRisk: {
-      type: mongoose.Schema.Types.Mixed,
-      default: {},
-    },
-
     timeline: {
       type: mongoose.Schema.Types.Mixed,
       default: {},
